@@ -15,8 +15,6 @@ Environment variables
 
 - ``DEBUG`` — If set to ``1``, ``true``, or ``yes``, API error JSON may include **raw**
   exception messages on 5xx/503. **Unset in production** so clients do not see internals.
-- ``WEBBRIA_DEBUG`` — Same behavior as ``DEBUG``. Checked only if ``DEBUG`` is not
-  enabling debug mode. Use this when another service on the host already uses generic ``DEBUG``.
 
 **Compress / convert download tokens**
 
@@ -85,10 +83,8 @@ def expose_error_details() -> bool:
 
     **``DEBUG``** — Preferred. Values that enable debug: ``1``, ``true``, ``yes`` (case-insensitive).
 
-    **``WEBBRIA_DEBUG``** — Same values. Used only when ``DEBUG`` is not set or does not enable
-    debug, so you can avoid clashing with another process that defines a generic ``DEBUG`` flag.
     """
-    for key in ("DEBUG", "WEBBRIA_DEBUG"):
+    for key in ("DEBUG"):
         val = os.environ.get(key, "").strip().lower()
         if val in ("1", "true", "yes"):
             return True
