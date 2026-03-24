@@ -1,0 +1,28 @@
+{# Shared navigation — used in base and HTMX OOB responses. #}
+{% macro feature_nav(active, oob=False) %}
+<nav id="feature-nav" class="feature-nav" aria-label="Tools"{% if oob %} hx-swap-oob="true"{% endif %}>
+    <div class="feature-nav__body">
+        <div id="feature-nav-links" class="feature-nav__links">
+            <a href="/" class="feature-nav__link{% if active == 'rmbg' %} feature-nav__link--active{% endif %}"{% if active == 'rmbg' %} aria-current="page"{% endif %}
+               hx-get="/" hx-target="#htmx-page" hx-swap="innerHTML" hx-push-url="true">Background remover</a>
+            <a href="/compress-img" class="feature-nav__link{% if active == 'compress_img' %} feature-nav__link--active{% endif %}"{% if active == 'compress_img' %} aria-current="page"{% endif %}
+               hx-get="/compress-img" hx-target="#htmx-page" hx-swap="innerHTML" hx-push-url="true">Image compressor</a>
+            <a href="/convert-img" class="feature-nav__link{% if active == 'convert_img' %} feature-nav__link--active{% endif %}"{% if active == 'convert_img' %} aria-current="page"{% endif %}
+               hx-get="/convert-img" hx-target="#htmx-page" hx-swap="innerHTML" hx-push-url="true">Image converter</a>
+            <a href="/compress-pdf" class="feature-nav__link{% if active == 'compress_pdf' %} feature-nav__link--active{% endif %}"{% if active == 'compress_pdf' %} aria-current="page"{% endif %}
+               hx-get="/compress-pdf" hx-target="#htmx-page" hx-swap="innerHTML" hx-push-url="true">PDF compressor</a>
+            <a href="/pdf-to-img" class="feature-nav__link{% if active == 'pdf_to_img' %} feature-nav__link--active{% endif %}"{% if active == 'pdf_to_img' %} aria-current="page"{% endif %}
+               hx-get="/pdf-to-img" hx-target="#htmx-page" hx-swap="innerHTML" hx-push-url="true">PDF to images</a>
+            <a href="/img-to-pdf" class="feature-nav__link{% if active == 'img_to_pdf' %} feature-nav__link--active{% endif %}"{% if active == 'img_to_pdf' %} aria-current="page"{% endif %}
+               hx-get="/img-to-pdf" hx-target="#htmx-page" hx-swap="innerHTML" hx-push-url="true">Images to PDF</a>
+            <a href="/merge-pdf" class="feature-nav__link{% if active == 'merge_pdf' %} feature-nav__link--active{% endif %}"{% if active == 'merge_pdf' %} aria-current="page"{% endif %}
+               hx-get="/merge-pdf" hx-target="#htmx-page" hx-swap="innerHTML" hx-push-url="true">Merge PDF</a>
+        </div>
+        <button type="button" class="feature-nav__toggle" hidden aria-expanded="true" aria-controls="feature-nav-links" aria-label="Show fewer tools">
+            <svg class="feature-nav__toggle-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+        </button>
+    </div>
+</nav>
+{% endmacro %}

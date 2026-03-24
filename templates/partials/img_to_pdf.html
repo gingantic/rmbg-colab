@@ -1,0 +1,129 @@
+<main class="main">
+        <div class="img-to-pdf-tool" x-data="imgToPdfTool()" x-init="init()">
+        <section class="section upload-section" x-show="step === 'upload'" x-cloak>
+            <div class="upload-card glass-card">
+                <p class="compress-hint img-to-pdf-order-hint">Select one or more images. <strong>Page order</strong> matches the order shown below (first file = first page).</p>
+                <div
+                    class="drop-zone"
+                    :class="{ dragover: dragover }"
+                    @dragenter.prevent="dragover = true"
+                    @dragover.prevent="dragover = true"
+                    @dragleave.prevent="dragover = false"
+                    @drop.prevent="onDrop($event)"
+                    @click="pickFile()"
+                >
+                    <div class="drop-zone-content">
+                        <div class="upload-icon">
+                            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <circle cx="32" cy="32" r="30" stroke="url(#up-grad-i2p)" stroke-width="2" stroke-dasharray="6 4" opacity="0.5"/>
+                                <path d="M32 20V44M20 32L32 20L44 32" stroke="url(#up-grad-i2p)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <defs>
+                                    <linearGradient id="up-grad-i2p" x1="0" y1="0" x2="64" y2="64">
+                                        <stop stop-color="#6366f1"/>
+                                        <stop offset="1" stop-color="#a855f7"/>
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                        </div>
+                        <h2 class="drop-zone-title">Drop images to merge into PDF</h2>
+                        <p class="drop-zone-subtitle">or <span class="browse-link">browse files</span></p>
+                        <p class="drop-zone-hint">PNG, JPG, WEBP, BMP, TIFF — multiple files allowed — Max 20 MB each</p>
+                    </div>
+                    <input x-ref="fileInput" id="i2p-file-input" type="file" accept="image/png,image/jpeg,image/jpg,image/webp,image/bmp,image/tiff,.png,.jpg,.jpeg,.jfif,.jpe,.webp,.bmp,.tiff" multiple hidden @click.stop @change="onFileChange()">
+                </div>
+                <div class="img-to-pdf-file-list glass-card" x-show="selectedFiles.length > 0" x-cloak>
+                    <div class="merge-pdf-list-head">
+                        <p class="merge-pdf-list-title">Selected Images (<span x-text="selectedFiles.length"></span>)</p>
+                    </div>
+                    <ul class="merge-pdf-list-items">
+                        <template x-for="(f, idx) in selectedFiles" :key="fileKey(f, idx)">
+                            <li class="merge-pdf-list-item">
+                                <div class="merge-pdf-file-meta">
+                                    <span class="merge-pdf-file-index" x-text="idx + 1"></span>
+                                    <div class="merge-pdf-file-text">
+                                        <p class="merge-pdf-file-name" x-text="f.name"></p>
+                                        <p class="merge-pdf-file-size" x-text="formatBytes(f.size)"></p>
+                                    </div>
+                                </div>
+                                <div class="merge-pdf-file-actions">
+                                    <button type="button" class="btn btn-secondary btn-icon" title="Move up" @click.stop="moveUp(idx)" :disabled="idx === 0">↑</button>
+                                    <button type="button" class="btn btn-secondary btn-icon" title="Move down" @click.stop="moveDown(idx)" :disabled="idx === selectedFiles.length - 1">↓</button>
+                                    <button type="button" class="btn btn-secondary btn-icon" title="Remove" @click.stop="removeAt(idx)">✕</button>
+                                </div>
+                            </li>
+                        </template>
+                    </ul>
+                    <div class="merge-pdf-footer-actions">
+                        <button type="button" class="btn btn-secondary btn-small" @click.stop="clearFiles()">Clear list</button>
+                        <button type="button" class="btn btn-primary img-to-pdf-build-btn" @click.stop="buildPdf()" :disabled="selectedFiles.length === 0">Build PDF</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section processing-section" x-show="step === 'processing'" x-cloak>
+            <div class="glass-card processing-card">
+                <div class="spinner"></div>
+                <h2 class="processing-title">Building PDF…</h2>
+                <p class="processing-subtitle">Embedding images in order</p>
+            </div>
+        </section>
+
+        <section class="section result-section" x-show="step === 'result'" x-cloak>
+            <div class="result-container">
+                <div class="compress-stats glass-card">
+                    <div class="compress-stat">
+                        <span class="compress-stat-label">Images total</span>
+                        <span class="compress-stat-value" x-text="originalSizeText"></span>
+                    </div>
+                    <div class="compress-stat compress-stat--accent">
+                        <span class="compress-stat-label">PDF size</span>
+                        <span class="compress-stat-value" x-text="pdfSizeText"></span>
+                    </div>
+                    <div class="compress-stat">
+                        <span class="compress-stat-label">Pages</span>
+                        <span class="compress-stat-value" x-text="pageCountText"></span>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button type="button" id="i2p-back-btn" class="btn btn-secondary" @click="handleBack()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <line x1="19" y1="12" x2="5" y2="12"/>
+                            <polyline points="12 19 5 12 12 5"/>
+                        </svg>
+                        Back
+                    </button>
+                    <a id="i2p-open-tab" class="btn btn-secondary" :href="resultServerPath || '#'" target="_blank" rel="noopener" x-show="showOpenTab" x-cloak>Open PDF</a>
+                    <button type="button" id="i2p-download-btn" class="btn btn-primary" @click="downloadResult()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Download PDF
+                    </button>
+                    <button type="button" id="i2p-new-btn" class="btn btn-secondary" @click="goToUpload()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="1 4 1 10 7 10"/>
+                            <path d="M3.51 15a9 9 0 102.13-9.36L1 10"/>
+                        </svg>
+                        New set
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <div id="i2p-error-toast" class="error-toast" :class="{ visible: toastVisible }" x-ref="errorToast">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="15" y1="9" x2="9" y2="15"/>
+                <line x1="9" y1="9" x2="15" y2="15"/>
+            </svg>
+            <span id="i2p-error-text" x-text="toastMessage"></span>
+        </div>
+        </div>
+</main>
+<footer class="footer">
+        <p>PDF assembly with <a href="https://gitlab.mister-muffin.de/josch/img2pdf" target="_blank" rel="noopener">img2pdf</a> and <a href="https://python-pillow.org/" target="_blank" rel="noopener">Pillow</a></p>
+</footer>

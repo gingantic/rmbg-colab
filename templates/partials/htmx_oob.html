@@ -1,0 +1,5 @@
+<title id="doc-title" hx-swap-oob="true">{{ page_title }}</title>
+<span id="logo-badge" class="logo-version" hx-swap-oob="true">{{ badge }}</span>
+<p id="header-tagline" class="header-tagline" hx-swap-oob="true">{{ tagline }}</p>
+{% from "macros.html" import feature_nav %}
+{{ feature_nav(active_page, oob=True) }}

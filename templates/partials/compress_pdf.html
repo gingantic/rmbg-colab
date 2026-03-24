@@ -1,0 +1,151 @@
+<main class="main">
+        <div class="compress-pdf-tool" x-data="compressPdfTool()" x-init="init()">
+        <section class="section upload-section" x-show="step === 'upload'" x-cloak>
+            <div class="upload-card glass-card">
+                <div class="compress-controls">
+                    <div class="compress-controls-row layout-row layout-row--wrap layout-row--start">
+                        <label class="compress-field" for="pdf-mode-select">
+                            <span class="compress-field-label">Mode</span>
+                            <select id="pdf-mode-select" class="compress-select" x-model="mode" :aria-describedby="mode === 'bitmap' ? 'pdf-mode-hint-bitmap pdf-quality-hint-bm pdf-dpi-hint' : 'pdf-mode-hint pdf-quality-hint'">
+                                <option value="auto">Auto (detect)</option>
+                                <option value="text">Text / vectors only</option>
+                                <option value="image">Recompress images</option>
+                                <option value="bitmap">Bitmap (pages as JPEG)</option>
+                            </select>
+                        </label>
+                        <template x-if="mode === 'bitmap'">
+                            <label class="compress-field" id="pdf-dpi-field" for="pdf-bitmap-dpi">
+                                <span class="compress-field-label">Raster DPI</span>
+                                <select x-ref="bitmapDpi" id="pdf-bitmap-dpi" class="compress-select" aria-describedby="pdf-dpi-hint">
+                                    <option value="96">96</option>
+                                    <option value="120">120</option>
+                                    <option value="150" selected>150</option>
+                                    <option value="200">200</option>
+                                    <option value="300">300</option>
+                                </select>
+                                <p id="pdf-dpi-hint" class="compress-hint">Higher DPI = sharper pages and larger files. Used only in Bitmap mode.</p>
+                            </label>
+                        </template>
+                        <div class="compress-field compress-field--grow">
+                            <div class="compress-field-head">
+                                <label class="compress-field-label" for="pdf-quality-range" id="pdf-quality-label" x-text="mode === 'bitmap' ? 'JPEG page quality' : 'Embedded image quality'"></label>
+                                <span id="pdf-quality-value" class="compress-quality-value" x-text="quality"></span>
+                            </div>
+                            <input id="pdf-quality-range" type="range" class="compress-range" min="1" max="100" x-model.number="quality" :aria-valuenow="quality" aria-valuemin="1" aria-valuemax="100" :aria-describedby="mode === 'bitmap' ? 'pdf-mode-hint-bitmap pdf-quality-hint-bm' : 'pdf-mode-hint pdf-quality-hint'" @input="$el.setAttribute('aria-valuenow', quality)">
+                            <template x-if="mode !== 'bitmap'">
+                                <div>
+                                    <p id="pdf-mode-hint" class="compress-hint">Auto picks text/vector optimization (deflate, no rasterizing) for digital PDFs, or JPEG recompression for scans and image-heavy PDFs.</p>
+                                    <p id="pdf-quality-hint" class="compress-hint">This value is only used when embedded photos are re-encoded (Auto → image, or “Recompress images”). It sets JPEG quality 1–100: higher = sharper and larger, lower = smaller with more loss. “Text / vectors only” ignores it.</p>
+                                </div>
+                            </template>
+                            <template x-if="mode === 'bitmap'">
+                                <div>
+                                    <p id="pdf-mode-hint-bitmap" class="compress-hint">Bitmap mode draws each page as a JPEG at the chosen DPI. Text is no longer selectable; use for maximum size reduction when that tradeoff is OK.</p>
+                                    <p id="pdf-quality-hint-bm" class="compress-hint">JPEG quality 1–100 for each page image after rasterizing at the DPI above. Lower = smaller files and more artifacts.</p>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                <div
+                    class="drop-zone"
+                    :class="{ dragover: dragover }"
+                    @dragenter.prevent="dragover = true"
+                    @dragover.prevent="dragover = true"
+                    @dragleave.prevent="dragover = false"
+                    @drop.prevent="onDrop($event)"
+                    @click="pickFile()"
+                >
+                    <div class="drop-zone-content">
+                        <div class="upload-icon">
+                            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <circle cx="32" cy="32" r="30" stroke="url(#up-grad-pdf)" stroke-width="2" stroke-dasharray="6 4" opacity="0.5"/>
+                                <path d="M32 20V44M20 32L32 20L44 32" stroke="url(#up-grad-pdf)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <defs>
+                                    <linearGradient id="up-grad-pdf" x1="0" y1="0" x2="64" y2="64">
+                                        <stop stop-color="#6366f1"/>
+                                        <stop offset="1" stop-color="#a855f7"/>
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                        </div>
+                        <h2 class="drop-zone-title">Drop a PDF to compress</h2>
+                        <p class="drop-zone-subtitle">or <span class="browse-link">browse files</span></p>
+                        <p class="drop-zone-hint">PDF only — Max 20 MB</p>
+                    </div>
+                    <input x-ref="fileInput" id="pdf-file-input" type="file" accept=".pdf,application/pdf" hidden @change="onFileChange()">
+                </div>
+            </div>
+        </section>
+
+        <section class="section processing-section" x-show="step === 'processing'" x-cloak>
+            <div class="glass-card processing-card">
+                <div class="spinner"></div>
+                <h2 class="processing-title">Compressing PDF…</h2>
+                <p class="processing-subtitle">Analyzing content and optimizing streams</p>
+            </div>
+        </section>
+
+        <section class="section result-section" x-show="step === 'result'" x-cloak>
+            <div class="result-container">
+                <div class="compress-stats glass-card">
+                    <div class="compress-stat">
+                        <span class="compress-stat-label">Original</span>
+                        <span id="pdf-original-size" class="compress-stat-value" x-text="originalSizeText"></span>
+                    </div>
+                    <div class="compress-stat compress-stat--accent">
+                        <span class="compress-stat-label">Compressed</span>
+                        <span id="pdf-compressed-size" class="compress-stat-value" x-text="compressedSizeText"></span>
+                    </div>
+                    <div class="compress-stat">
+                        <span class="compress-stat-label">Saved</span>
+                        <span id="pdf-saved-pct" class="compress-stat-value" x-text="savedPctText"></span>
+                    </div>
+                </div>
+
+                <div class="pdf-result-card glass-card">
+                    <p id="pdf-mode-line" class="pdf-result-mode" aria-live="polite" x-text="modeLineText"></p>
+                    <p class="pdf-result-note">Auto / text / image modes preserve vectors and selectable text where possible. Bitmap mode flattens each page to a JPEG (maximum shrink, no text layer).</p>
+                </div>
+
+                <div class="actions">
+                    <button type="button" id="pdf-back-btn" class="btn btn-secondary" @click="handleBack()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <line x1="19" y1="12" x2="5" y2="12"/>
+                            <polyline points="12 19 5 12 12 5"/>
+                        </svg>
+                        Back
+                    </button>
+                    <a id="pdf-open-tab" class="btn btn-secondary" :href="resultServerPath || '#'" target="_blank" rel="noopener" x-show="showOpenTab" x-cloak>Open PDF</a>
+                    <button type="button" id="pdf-download-btn" class="btn btn-primary" @click="downloadResult()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Download PDF
+                    </button>
+                    <button type="button" id="pdf-new-btn" class="btn btn-secondary" @click="goToUpload()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="1 4 1 10 7 10"/>
+                            <path d="M3.51 15a9 9 0 102.13-9.36L1 10"/>
+                        </svg>
+                        New file
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <div id="pdf-error-toast" class="error-toast" :class="{ visible: toastVisible }" x-ref="errorToast">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="15" y1="9" x2="9" y2="15"/>
+                <line x1="9" y1="9" x2="15" y2="15"/>
+            </svg>
+            <span id="pdf-error-text" x-text="toastMessage"></span>
+        </div>
+        </div>
+</main>
+<footer class="footer">
+        <p>PDF handling with <a href="https://github.com/pikepdf/pikepdf" target="_blank" rel="noopener">pikepdf</a> and <a href="https://github.com/py-pdf/pypdf" target="_blank" rel="noopener">pypdf</a></p>
+</footer>

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{% block meta_description %}{% endblock %}">
+    <title id="doc-title">{% block title %}{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    {% set ap = active_page|default('rmbg') %}
+    <header class="header">
+        <div class="header-inner">
+            <a href="/" class="logo logo-link" hx-get="/" hx-target="#htmx-page" hx-swap="innerHTML" hx-push-url="true">
+                <div class="logo-icon">
+                    {% block logo_svg %}{% endblock %}
+                </div>
+                <span class="logo-text">RhnxTool <span id="logo-badge" class="logo-version">{% block logo_badge %}{% endblock %}</span></span>
+            </a>
+            {% from "macros.html" import feature_nav %}
+            {{ feature_nav(ap, oob=False) }}
+            <p id="header-tagline" class="header-tagline">{% block header_tagline %}{% endblock %}</p>
+        </div>
+    </header>
+
+    <div id="htmx-page">
+        {% block tool_page %}{% endblock %}
+    </div>
+
+    <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" crossorigin="anonymous"></script>
+    <script defer src="/static/js/app.js"></script>
+    <script defer src="/static/js/compress_img.js"></script>
+    <script defer src="/static/js/convert_img.js"></script>
+    <script defer src="/static/js/compress_pdf.js"></script>
+    <script defer src="/static/js/pdf_to_img.js"></script>
+    <script defer src="/static/js/img_to_pdf.js"></script>
+    <script defer src="/static/js/merge_pdf.js"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.14.3/dist/cdn.min.js" crossorigin="anonymous"></script>
+    <script defer src="/static/js/htmx-init.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

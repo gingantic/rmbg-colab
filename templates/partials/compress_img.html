@@ -1,0 +1,136 @@
+<main class="main">
+        <div class="compress-img-tool" x-data="compressImgTool()" x-init="init()">
+        <section class="section upload-section" x-show="step === 'upload'" x-cloak>
+            <div class="upload-card glass-card">
+                <div class="compress-controls">
+                    <div class="compress-controls-row layout-row layout-row--wrap layout-row--start">
+                        <label class="compress-field" for="format-select">
+                            <span class="compress-field-label">Output format</span>
+                            <select id="format-select" class="compress-select" aria-describedby="format-hint" x-model="format">
+                                <option value="jpeg">JPEG</option>
+                                <option value="webp">WebP</option>
+                                <option value="png">PNG</option>
+                            </select>
+                        </label>
+                        <div class="compress-field compress-field--grow">
+                            <div class="compress-field-head">
+                                <label class="compress-field-label" for="quality-range">Quality</label>
+                                <span id="quality-value" class="compress-quality-value" x-text="quality"></span>
+                            </div>
+                            <input id="quality-range" type="range" class="compress-range" min="1" max="100" x-model.number="quality" :aria-valuenow="quality" aria-valuemin="1" aria-valuemax="100" @input="$el.setAttribute('aria-valuenow', quality)">
+                            <p id="format-hint" class="compress-hint" x-show="format !== 'png'" x-cloak>JPEG and WebP: 1–100 is lossy quality (higher = better fidelity, bigger files). JPEG flattens transparency onto white. WebP keeps alpha when possible.</p>
+                            <p id="png-hint" class="compress-hint" x-show="format === 'png'" x-cloak>PNG stays visually lossless; 1–100 maps to ZIP-style compression (0–9): higher values squeeze the file more with the same pixels.</p>
+                        </div>
+                    </div>
+                </div>
+                <div
+                    class="drop-zone"
+                    :class="{ dragover: dragover }"
+                    @dragenter.prevent="dragover = true"
+                    @dragover.prevent="dragover = true"
+                    @dragleave.prevent="dragover = false"
+                    @drop.prevent="onDrop($event)"
+                    @click="pickFile()"
+                >
+                    <div class="drop-zone-content">
+                        <div class="upload-icon">
+                            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="32" cy="32" r="30" stroke="url(#up-grad-c)" stroke-width="2" stroke-dasharray="6 4" opacity="0.5"/>
+                                <path d="M32 20V44M20 32L32 20L44 32" stroke="url(#up-grad-c)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <defs>
+                                    <linearGradient id="up-grad-c" x1="0" y1="0" x2="64" y2="64">
+                                        <stop stop-color="#6366f1"/>
+                                        <stop offset="1" stop-color="#a855f7"/>
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                        </div>
+                        <h2 class="drop-zone-title">Drop an image to compress</h2>
+                        <p class="drop-zone-subtitle">or <span class="browse-link">browse files</span></p>
+                        <p class="drop-zone-hint">PNG, JPG, WEBP, BMP, TIFF — Max 20 MB</p>
+                    </div>
+                    <input x-ref="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/bmp,image/tiff" hidden @change="onFileChange()">
+                </div>
+            </div>
+        </section>
+
+        <section class="section processing-section" x-show="step === 'processing'" x-cloak>
+            <div class="glass-card processing-card">
+                <div class="spinner"></div>
+                <h2 class="processing-title">Compressing…</h2>
+                <p class="processing-subtitle">Hang tight — large images take a bit longer</p>
+            </div>
+        </section>
+
+        <section class="section result-section" x-show="step === 'result'" x-cloak>
+            <div class="result-container">
+                <div class="compress-stats glass-card">
+                    <div class="compress-stat">
+                        <span class="compress-stat-label">Original</span>
+                        <span class="compress-stat-value" x-text="originalSizeText"></span>
+                    </div>
+                    <div class="compress-stat compress-stat--accent">
+                        <span class="compress-stat-label">Compressed</span>
+                        <span class="compress-stat-value" x-text="compressedSizeText"></span>
+                    </div>
+                    <div class="compress-stat">
+                        <span class="compress-stat-label">Saved</span>
+                        <span class="compress-stat-value" x-text="savedPctText"></span>
+                    </div>
+                </div>
+
+                <div class="comparison-grid">
+                    <div class="comparison-card glass-card" x-show="showOriginalColumn" x-cloak>
+                        <span class="comparison-label">Original</span>
+                        <div class="image-wrapper">
+                            <img :src="originalPreviewUrl" alt="Original image">
+                        </div>
+                    </div>
+                    <div class="comparison-card glass-card">
+                        <span class="comparison-label result-label">Compressed</span>
+                        <div class="image-wrapper" :class="{ 'checkered-bg': resultCheckered }">
+                            <img :src="resultServerPath || ''" alt="Compressed image">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button type="button" class="btn btn-secondary" @click="handleBack()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <line x1="19" y1="12" x2="5" y2="12"/>
+                            <polyline points="12 19 5 12 12 5"/>
+                        </svg>
+                        Back
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="downloadResult()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Download
+                    </button>
+                    <button type="button" class="btn btn-secondary" @click="goToUpload()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="1 4 1 10 7 10"/>
+                            <path d="M3.51 15a9 9 0 102.13-9.36L1 10"/>
+                        </svg>
+                        New Image
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <div id="error-toast" class="error-toast" :class="{ visible: toastVisible }" x-ref="errorToast">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="15" y1="9" x2="9" y2="15"/>
+                <line x1="9" y1="9" x2="15" y2="15"/>
+            </svg>
+            <span x-text="toastMessage"></span>
+        </div>
+        </div>
+</main>
+<footer class="footer">
+        <p>Server-side compression with <a href="https://python-pillow.org/" target="_blank" rel="noopener">Pillow</a></p>
+</footer>

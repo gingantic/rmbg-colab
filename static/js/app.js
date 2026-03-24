@@ -1,152 +1,203 @@
 // ================================================================
-// RMBG 2.0 — Client-side Logic
+// RMBG 2.0 — Alpine component (registered on alpine:init)
 // ================================================================
 
-(() => {
-    'use strict';
+document.addEventListener('alpine:init', () => {
+    Alpine.data('rmbgTool', () => ({
+        step: 'upload',
+        dragover: false,
+        originalPreviewUrl: '',
+        resultBlobUrl: null,
+        activeBgColor: null,
+        toastVisible: false,
+        toastMessage: '',
+        toastHideTimer: null,
 
-    // --- DOM Elements ---
-    const dropZone       = document.getElementById('drop-zone');
-    const fileInput      = document.getElementById('file-input');
-    const uploadSection  = document.getElementById('upload-section');
-    const processSection = document.getElementById('processing-section');
-    const resultSection  = document.getElementById('result-section');
-    const originalImg    = document.getElementById('original-image');
-    const resultImg      = document.getElementById('result-image');
-    const downloadBtn    = document.getElementById('download-btn');
-    const newImageBtn    = document.getElementById('new-image-btn');
-    const errorToast     = document.getElementById('error-toast');
-    const errorText      = document.getElementById('error-text');
+        MAX_SIZE_MB: 20,
+        ALLOWED_TYPES: ['image/png', 'image/jpeg', 'image/webp', 'image/bmp', 'image/tiff'],
 
-    const MAX_SIZE_MB   = 20;
-    const ALLOWED_TYPES = new Set([
-        'image/png', 'image/jpeg', 'image/webp', 'image/bmp', 'image/tiff',
-    ]);
-
-    let resultBlobUrl = null;
-
-    // --- Helpers ---
-    function show(el)  { el.classList.remove('hidden'); }
-    function hide(el)  { el.classList.add('hidden'); }
-
-    function showError(msg) {
-        errorText.textContent = msg;
-        errorToast.classList.remove('hidden');
-        // Force reflow for re-triggering animation
-        void errorToast.offsetWidth;
-        errorToast.classList.add('visible');
-        setTimeout(() => {
-            errorToast.classList.remove('visible');
-            setTimeout(() => errorToast.classList.add('hidden'), 300);
-        }, 4000);
-    }
-
-    function validateFile(file) {
-        if (!file) return 'No file selected.';
-        if (!ALLOWED_TYPES.has(file.type)) return `Unsupported type: ${file.type || 'unknown'}`;
-        if (file.size > MAX_SIZE_MB * 1024 * 1024) return `File too large (max ${MAX_SIZE_MB} MB).`;
-        return null;
-    }
-
-    // --- State transitions ---
-    function goToUpload() {
-        hide(processSection);
-        hide(resultSection);
-        show(uploadSection);
-        if (resultBlobUrl) { URL.revokeObjectURL(resultBlobUrl); resultBlobUrl = null; }
-        originalImg.src = '';
-        resultImg.src = '';
-    }
-
-    function goToProcessing() {
-        hide(uploadSection);
-        hide(resultSection);
-        show(processSection);
-    }
-
-    function goToResult(originalSrc, resultSrc) {
-        hide(uploadSection);
-        hide(processSection);
-        originalImg.src = originalSrc;
-        resultImg.src = resultSrc;
-        show(resultSection);
-    }
-
-    // --- Core: Upload & process ---
-    async function processImage(file) {
-        const error = validateFile(file);
-        if (error) { showError(error); return; }
-
-        // Show original preview
-        const originalUrl = URL.createObjectURL(file);
-
-        goToProcessing();
-
-        const formData = new FormData();
-        formData.append('image', file);
-
-        try {
-            const res = await fetch('/remove-bg', {
-                method: 'POST',
-                body: formData,
+        showError(msg) {
+            this.toastMessage = msg;
+            this.toastVisible = true;
+            clearTimeout(this.toastHideTimer);
+            this.$nextTick(() => {
+                const el = this.$refs.errorToast;
+                if (el) void el.offsetWidth;
             });
+            this.toastHideTimer = setTimeout(() => {
+                this.toastVisible = false;
+            }, 4000);
+        },
 
-            if (!res.ok) {
-                const data = await res.json().catch(() => ({}));
-                throw new Error(data.error || `Server error (${res.status})`);
+        validateFile(file) {
+            if (!file) return 'No file selected.';
+            if (!this.ALLOWED_TYPES.includes(file.type)) return `Unsupported type: ${file.type || 'unknown'}`;
+            if (file.size > this.MAX_SIZE_MB * 1024 * 1024) return `File too large (max ${this.MAX_SIZE_MB} MB).`;
+            return null;
+        },
+
+        goToUpload() {
+            if (this.resultBlobUrl) {
+                URL.revokeObjectURL(this.resultBlobUrl);
+                this.resultBlobUrl = null;
             }
+            if (this.originalPreviewUrl) {
+                URL.revokeObjectURL(this.originalPreviewUrl);
+                this.originalPreviewUrl = '';
+            }
+            this.step = 'upload';
+            this.activeBgColor = null;
+            this.$nextTick(() => this.resetResultBackground());
+        },
 
-            const blob = await res.blob();
-            resultBlobUrl = URL.createObjectURL(blob);
-            goToResult(originalUrl, resultBlobUrl);
-        } catch (err) {
-            showError(err.message || 'Something went wrong.');
-            goToUpload();
-            URL.revokeObjectURL(originalUrl);
-        }
-    }
+        resetResultBackground() {
+            const w = this.$refs.resultWrapper;
+            const picker = this.$refs.bgColorPicker;
+            const hex = this.$refs.bgHexInput;
+            if (w) {
+                w.classList.add('checkered-bg');
+                w.style.background = '';
+            }
+            if (picker) picker.value = '#ffffff';
+            if (hex) hex.value = '';
+        },
 
-    // --- Drag & Drop ---
-    ['dragenter', 'dragover'].forEach(evt => {
-        dropZone.addEventListener(evt, e => {
+        applyResultBackground(color) {
+            const w = this.$refs.resultWrapper;
+            if (!w) return;
+            if (!color) {
+                this.resetResultBackground();
+                return;
+            }
+            w.classList.remove('checkered-bg');
+            w.style.background = color;
+        },
+
+        onBgColorInput() {
+            const picker = this.$refs.bgColorPicker;
+            const hexIn = this.$refs.bgHexInput;
+            if (!picker) return;
+            this.activeBgColor = picker.value;
+            this.applyResultBackground(this.activeBgColor);
+            if (hexIn) hexIn.value = this.activeBgColor.replace('#', '').toLowerCase();
+        },
+
+        onBgHexInput() {
+            const hexIn = this.$refs.bgHexInput;
+            const picker = this.$refs.bgColorPicker;
+            if (!hexIn) return;
+            const raw = hexIn.value.replace(/[^0-9a-fA-F]/g, '').slice(0, 6);
+            if (raw !== hexIn.value) hexIn.value = raw;
+            const hexRegex = /^[0-9a-fA-F]{6}$/;
+            if (hexRegex.test(raw)) {
+                const normalized = `#${raw.toLowerCase()}`;
+                this.activeBgColor = normalized;
+                this.applyResultBackground(normalized);
+                if (picker) picker.value = normalized;
+            }
+        },
+
+        onBgHexBlur() {
+            const hexIn = this.$refs.bgHexInput;
+            if (!hexIn) return;
+            const hexRegex = /^[0-9a-fA-F]{6}$/;
+            const value = hexIn.value.trim();
+            if (!hexRegex.test(value)) {
+                if (this.activeBgColor) {
+                    hexIn.value = this.activeBgColor.replace('#', '').toLowerCase();
+                } else {
+                    hexIn.value = '';
+                }
+            }
+        },
+
+        async processImage(file) {
+            const err = this.validateFile(file);
+            if (err) {
+                this.showError(err);
+                return;
+            }
+            const originalUrl = URL.createObjectURL(file);
+            this.originalPreviewUrl = originalUrl;
+            this.step = 'processing';
+            const formData = new FormData();
+            formData.append('image', file);
+            try {
+                const res = await fetch('/remove-bg', { method: 'POST', body: formData });
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data.error || `Server error (${res.status})`);
+                }
+                const blob = await res.blob();
+                this.resultBlobUrl = URL.createObjectURL(blob);
+                this.step = 'result';
+            } catch (e) {
+                this.showError(e.message || 'Something went wrong.');
+                this.goToUpload();
+            }
+        },
+
+        pickFile() {
+            this.$refs.fileInput.click();
+        },
+
+        onFileChange() {
+            const input = this.$refs.fileInput;
+            const file = input.files[0];
+            if (file) this.processImage(file);
+            input.value = '';
+        },
+
+        onDrop(e) {
             e.preventDefault();
             e.stopPropagation();
-            dropZone.classList.add('dragover');
-        });
-    });
+            this.dragover = false;
+            const file = e.dataTransfer.files[0];
+            if (file) this.processImage(file);
+        },
 
-    ['dragleave', 'drop'].forEach(evt => {
-        dropZone.addEventListener(evt, e => {
-            e.preventDefault();
-            e.stopPropagation();
-            dropZone.classList.remove('dragover');
-        });
-    });
+        downloadPng() {
+            if (!this.resultBlobUrl) return;
+            const a = document.createElement('a');
+            a.href = this.resultBlobUrl;
+            a.download = 'rmbg_result.png';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        },
 
-    dropZone.addEventListener('drop', e => {
-        const file = e.dataTransfer.files[0];
-        if (file) processImage(file);
-    });
-
-    // --- Click to browse ---
-    dropZone.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', () => {
-        const file = fileInput.files[0];
-        if (file) processImage(file);
-        fileInput.value = '';
-    });
-
-    // --- Download ---
-    downloadBtn.addEventListener('click', () => {
-        if (!resultBlobUrl) return;
-        const a = document.createElement('a');
-        a.href = resultBlobUrl;
-        a.download = 'rmbg_result.png';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-    });
-
-    // --- New Image ---
-    newImageBtn.addEventListener('click', goToUpload);
-})();
+        async downloadColored() {
+            if (!this.resultBlobUrl) return;
+            const bgColor = this.activeBgColor || '#ffffff';
+            try {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.src = this.resultBlobUrl;
+                await new Promise((resolve, reject) => {
+                    img.onload = () => resolve();
+                    img.onerror = () => reject(new Error('Failed to load processed image.'));
+                });
+                const canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth || img.width;
+                canvas.height = img.naturalHeight || img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = bgColor;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                canvas.toBlob((blob) => {
+                    if (!blob) return;
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'rmbg_result_colored.png';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 'image/png');
+            } catch (e) {
+                this.showError(e.message || 'Failed to generate background image.');
+            }
+        },
+    }));
+});
