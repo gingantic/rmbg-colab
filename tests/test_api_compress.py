@@ -3,6 +3,7 @@
 import io
 import zipfile
 
+import pikepdf
 from pypdf import PdfReader
 
 
@@ -168,3 +169,79 @@ def test_merge_pdf_rejects_non_pdf(client, tiny_png_bytes):
 def test_merge_pdf_no_files_returns_error(client):
     r = client.post("/merge-pdf")
     assert r.status_code in (400, 422)
+
+
+def _multi_page_pdf_bytes(page_count: int) -> bytes:
+    pdf = pikepdf.Pdf.new()
+    for _ in range(page_count):
+        pdf.add_blank_page(page_size=(72, 72))
+    out = io.BytesIO()
+    pdf.save(out)
+    return out.getvalue()
+
+
+def test_split_reorder_pdf_reorder_only_returns_pdf(client):
+    raw = _multi_page_pdf_bytes(3)
+    files = {"pdf": ("src.pdf", raw, "application/pdf")}
+    data = {"page_order_json": "[3,1,2]"}
+    r = client.post("/split-reorder-pdf", files=files, data=data)
+    assert r.status_code == 200
+    j = r.json()
+    assert j["media_type"] == "application/pdf"
+    token = j["token"]
+    r2 = client.get(f"/r/{token}")
+    assert r2.status_code == 200
+    assert r2.headers.get("content-type") == "application/pdf"
+    parsed = PdfReader(io.BytesIO(r2.content))
+    assert len(parsed.pages) == 3
+
+
+def test_split_reorder_pdf_split_defaults_to_zip(client):
+    raw = _multi_page_pdf_bytes(3)
+    files = {"pdf": ("src.pdf", raw, "application/pdf")}
+    data = {
+        "split_blocks_json": "[[1,2],[3]]",
+        "page_order_json": "[1,2,3]",
+    }
+    r = client.post("/split-reorder-pdf", files=files, data=data)
+    assert r.status_code == 200
+    j = r.json()
+    assert j["media_type"] == "application/zip"
+    token = j["token"]
+    r2 = client.get(f"/r/{token}")
+    assert r2.status_code == 200
+    assert r2.headers.get("content-type") == "application/zip"
+    z = zipfile.ZipFile(io.BytesIO(r2.content))
+    names = z.namelist()
+    assert "part_01.pdf" in names
+    assert "part_02.pdf" in names
+
+
+def test_split_reorder_pdf_rejects_invalid_range(client):
+    raw = _multi_page_pdf_bytes(3)
+    files = {"pdf": ("src.pdf", raw, "application/pdf")}
+    data = {"split_ranges": "1-a|2-3", "page_order_json": "[1,2,3]"}
+    r = client.post("/split-reorder-pdf", files=files, data=data)
+    assert r.status_code == 400
+    assert "error" in r.json()
+
+
+def test_split_reorder_pdf_rejects_out_of_bounds(client):
+    raw = _multi_page_pdf_bytes(3)
+    files = {"pdf": ("src.pdf", raw, "application/pdf")}
+    data = {"split_ranges": "1-4", "page_order_json": "[1,2,3]"}
+    r = client.post("/split-reorder-pdf", files=files, data=data)
+    assert r.status_code == 400
+    assert "error" in r.json()
+
+
+def test_split_reorder_pdf_rejects_duplicate_split_pages(client):
+    raw = _multi_page_pdf_bytes(3)
+    files = {"pdf": ("src.pdf", raw, "application/pdf")}
+    data = {
+        "split_blocks_json": "[[1,1],[2,3]]",
+        "page_order_json": "[1,2,3]",
+    }
+    r = client.post("/split-reorder-pdf", files=files, data=data)
+    assert r.status_code == 400
+    assert "error" in r.json()

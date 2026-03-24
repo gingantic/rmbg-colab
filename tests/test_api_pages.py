@@ -13,6 +13,7 @@ import pytest
         ("/pdf-to-img", "<!DOCTYPE html>"),
         ("/img-to-pdf", "<!DOCTYPE html>"),
         ("/merge-pdf", "<!DOCTYPE html>"),
+        ("/split-reorder-pdf", "<!DOCTYPE html>"),
     ],
 )
 def test_pages_return_html(client, path, snippet):
@@ -37,6 +38,7 @@ def test_compress_legacy_redirects_to_pdf(client):
         ("/pdf-to-img", "PDF to images"),
         ("/img-to-pdf", "Images to PDF"),
         ("/merge-pdf", "Merge PDF"),
+        ("/split-reorder-pdf", "Split + Reorder PDF"),
     ],
 )
 def test_htmx_requests_return_fragment_not_full_document(client, path, expected_title_part):

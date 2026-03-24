@@ -17,6 +17,8 @@
                hx-get="/img-to-pdf" hx-target="#htmx-page" hx-swap="innerHTML" hx-push-url="true">Images to PDF</a>
             <a href="/merge-pdf" class="feature-nav__link{% if active == 'merge_pdf' %} feature-nav__link--active{% endif %}"{% if active == 'merge_pdf' %} aria-current="page"{% endif %}
                hx-get="/merge-pdf" hx-target="#htmx-page" hx-swap="innerHTML" hx-push-url="true">Merge PDF</a>
+            <a href="/split-reorder-pdf" class="feature-nav__link{% if active == 'split_reorder_pdf' %} feature-nav__link--active{% endif %}"{% if active == 'split_reorder_pdf' %} aria-current="page"{% endif %}
+               hx-get="/split-reorder-pdf" hx-target="#htmx-page" hx-swap="innerHTML" hx-push-url="true">Split + reorder PDF</a>
         </div>
         <button type="button" class="feature-nav__toggle" hidden aria-expanded="true" aria-controls="feature-nav-links" aria-label="Show fewer tools">
             <svg class="feature-nav__toggle-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

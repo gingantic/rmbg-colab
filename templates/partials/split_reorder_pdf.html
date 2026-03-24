@@ -1,0 +1,136 @@
+<main class="main">
+    <div class="merge-pdf-tool" x-data="splitReorderPdfTool()" x-init="init()">
+        <section class="section upload-section" x-show="step === 'upload'" x-cloak>
+            <div class="upload-card glass-card">
+                <p class="compress-hint merge-pdf-order-hint">Upload one PDF, reorder pages, optionally split into blocks, then export as PDF or ZIP.</p>
+                <div
+                    class="drop-zone"
+                    :class="{ dragover: dragover }"
+                    @dragenter.prevent="dragover = true"
+                    @dragover.prevent="dragover = true"
+                    @dragleave.prevent="dragover = false"
+                    @drop.prevent="onDrop($event)"
+                    @click="pickFile()"
+                >
+                    <div class="drop-zone-content">
+                        <h2 class="drop-zone-title">Drop one PDF</h2>
+                        <p class="drop-zone-subtitle">or <span class="browse-link">browse file</span></p>
+                        <p class="drop-zone-hint">PDF only - Max 20 MB</p>
+                    </div>
+                    <input x-ref="fileInput" type="file" accept=".pdf,application/pdf" hidden @click.stop @change="onFileChange()">
+                </div>
+
+                <div class="merge-pdf-list glass-card" x-show="pdfFile" x-cloak>
+                    <div class="merge-pdf-list-head">
+                        <p class="merge-pdf-list-title">
+                            <span x-text="pdfFile ? pdfFile.name : ''"></span>
+                            (<span x-text="pageCount"></span> pages)
+                        </p>
+                    </div>
+
+                    <p class="merge-pdf-list-title" style="margin-top:8px;">Global page order</p>
+                    <ul class="merge-pdf-list-items" x-show="pages.length > 0">
+                        <template x-for="(p, idx) in pages" :key="`p-${p.num}-${idx}`">
+                            <div>
+                                <li class="merge-pdf-list-item">
+                                    <div class="merge-pdf-file-meta">
+                                        <span class="merge-pdf-file-index" x-text="idx + 1"></span>
+                                        <div class="merge-pdf-file-text">
+                                            <p class="merge-pdf-file-name">Page <span x-text="p.num"></span></p>
+                                        </div>
+                                    </div>
+                                    <div class="merge-pdf-file-actions">
+                                        <button type="button" class="btn btn-secondary btn-icon" title="Move up" @click.stop="movePageUp(idx)" :disabled="idx === 0">↑</button>
+                                        <button type="button" class="btn btn-secondary btn-icon" title="Move down" @click.stop="movePageDown(idx)" :disabled="idx === pages.length - 1">↓</button>
+                                        <button
+                                            type="button"
+                                            class="btn btn-secondary btn-icon"
+                                            x-show="idx < pages.length - 1"
+                                            :title="hasSplitAt(idx + 1) ? 'Remove split after this page' : 'Add split after this page'"
+                                            @click.stop="hasSplitAt(idx + 1) ? removeSplitAt(idx + 1) : addSplitAt(idx + 1)"
+                                        >
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                <line x1="4" y1="12" x2="10" y2="12"></line>
+                                                <line x1="14" y1="12" x2="20" y2="12"></line>
+                                                <circle cx="12" cy="12" r="2"></circle>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </li>
+                                <template x-if="idx < pages.length - 1">
+                                    <div style="margin:6px 0 10px;">
+                                        <template x-if="hasSplitAt(idx + 1)">
+                                            <div class="merge-pdf-list-item">
+                                                <div class="merge-pdf-file-meta">
+                                                    <span class="merge-pdf-file-index">|</span>
+                                                    <div class="merge-pdf-file-text">
+                                                        <p class="merge-pdf-file-name">Split card</p>
+                                                        <p class="merge-pdf-file-size">Between page <span x-text="idx + 1"></span> and <span x-text="idx + 2"></span></p>
+                                                    </div>
+                                                </div>
+                                                <div class="merge-pdf-file-actions">
+                                                    <button type="button" class="btn btn-secondary btn-icon" title="Move split up" @click.stop="moveSplitUp(idx + 1)" :disabled="idx + 1 <= 1">↑</button>
+                                                    <button type="button" class="btn btn-secondary btn-icon" title="Move split down" @click.stop="moveSplitDown(idx + 1)" :disabled="idx + 1 >= pages.length - 1">↓</button>
+                                                    <button type="button" class="btn btn-secondary btn-icon" title="Remove split" @click.stop="removeSplitAt(idx + 1)">✕</button>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </ul>
+
+                    <div class="merge-pdf-footer-actions">
+                        <span class="compress-hint" x-text="splitBlocks.length > 0 ? 'Output: ZIP of split PDFs' : 'Output: one reordered PDF'"></span>
+                        <button type="button" class="btn btn-primary" @click.stop="process()" :disabled="!pdfFile">Process PDF</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section processing-section" x-show="step === 'processing'" x-cloak>
+            <div class="glass-card processing-card">
+                <div class="spinner"></div>
+                <h2 class="processing-title">Processing PDF...</h2>
+                <p class="processing-subtitle">Applying split and reorder rules</p>
+            </div>
+        </section>
+
+        <section class="section result-section" x-show="step === 'result'" x-cloak>
+            <div class="result-container">
+                <div class="compress-stats glass-card">
+                    <div class="compress-stat">
+                        <span class="compress-stat-label">Input</span>
+                        <span class="compress-stat-value" x-text="formatBytes(originalBytes)"></span>
+                    </div>
+                    <div class="compress-stat compress-stat--accent">
+                        <span class="compress-stat-label">Output</span>
+                        <span class="compress-stat-value" x-text="formatBytes(outputBytes)"></span>
+                    </div>
+                    <div class="compress-stat">
+                        <span class="compress-stat-label">File</span>
+                        <span class="compress-stat-value" x-text="resultFileLabel"></span>
+                    </div>
+                </div>
+                <div class="actions">
+                    <a class="btn btn-secondary" :href="resultServerPath || '#'" target="_blank" rel="noopener">Open</a>
+                    <button type="button" class="btn btn-primary" @click="downloadResult()">Download</button>
+                    <button type="button" class="btn btn-secondary" @click="goToUpload()">New set</button>
+                </div>
+            </div>
+        </section>
+
+        <div class="error-toast" :class="{ visible: toastVisible }" x-ref="errorToast">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="15" y1="9" x2="9" y2="15"/>
+                <line x1="9" y1="9" x2="15" y2="15"/>
+            </svg>
+            <span x-text="toastMessage"></span>
+        </div>
+    </div>
+</main>
+<footer class="footer">
+    <p>PDF split/reorder powered by <a href="https://github.com/py-pdf/pypdf" target="_blank" rel="noopener">pypdf</a></p>
+</footer>

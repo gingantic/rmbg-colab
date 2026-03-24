@@ -19,6 +19,15 @@ from app.services.images_to_pdf import images_bytes_to_pdf
 from app.services.pdf_merge import merge_pdf_bytes
 from app.services.pdf_compress import compress_pdf_bytes
 from app.services.pdf_to_images import PDF_TO_IMAGE_FORMATS, pdf_bytes_to_images_zip
+from app.services.pdf_split_reorder import (
+    build_reordered_pdf,
+    build_split_zip,
+    get_pdf_page_count,
+    parse_block_order_json,
+    parse_page_order_json,
+    parse_split_blocks_json,
+    parse_split_ranges,
+)
 from app.services.result_store import save_result
 from app.utils import (
     ALLOWED_EXTENSIONS,
@@ -398,3 +407,93 @@ async def merge_pdf_post(
             "compressed_size": out_size,
         }
     )
+
+
+@router.post("/split-reorder-pdf")
+async def split_reorder_pdf_post(
+    pdf: UploadFile = File(...),
+    split_ranges: Annotated[str, Form()] = "",
+    split_blocks_json: Annotated[str, Form()] = "",
+    page_order_json: Annotated[str, Form()] = "",
+    block_order_json: Annotated[str, Form()] = "",
+    export_mode: Annotated[str, Form()] = "",
+):
+    if not pdf.filename:
+        return JSONResponse({"error": "Empty filename."}, status_code=400)
+    if not allowed_pdf_file(pdf.filename):
+        return JSONResponse({"error": "Only PDF files are supported."}, status_code=400)
+
+    try:
+        raw = await pdf.read()
+        if not raw:
+            return JSONResponse({"error": "Empty file."}, status_code=400)
+
+        page_count = get_pdf_page_count(raw)
+        page_order = parse_page_order_json(page_order_json, page_count)
+
+        split_blocks = parse_split_blocks_json(split_blocks_json, page_count)
+        if not split_blocks and (split_ranges or "").strip():
+            split_blocks = parse_split_ranges(split_ranges, page_count)
+
+        export = (export_mode or "").strip().lower()
+        if export not in ("", "single", "zip"):
+            return JSONResponse(
+                {"error": "Invalid export mode. Use 'single' or 'zip'."},
+                status_code=400,
+            )
+
+        if split_blocks:
+            block_count = len(split_blocks)
+            block_order = parse_block_order_json(block_order_json, block_count)
+
+            # Convert split blocks defined in original-page numbering into reordered space.
+            # This allows the UI to reorder pages first, then split by those page identities.
+            reordered_set = set(page_order)
+            split_set = {p for block in split_blocks for p in block}
+            if split_set != reordered_set:
+                return JSONResponse(
+                    {"error": "Split blocks must cover all pages exactly once."},
+                    status_code=400,
+                )
+            if sum(len(block) for block in split_blocks) != page_count:
+                return JSONResponse(
+                    {"error": "Split blocks cannot include duplicate pages."},
+                    status_code=400,
+                )
+
+            # Product rule: split output is always ZIP of real split PDFs.
+            out_bytes = build_split_zip(raw, split_blocks, block_order)
+            media_type = "application/zip"
+            name = f"split_{uuid.uuid4().hex[:8]}.zip"
+            kind = "zip"
+        else:
+            # Reorder-only flow always outputs one PDF by default.
+            out_bytes = build_reordered_pdf(raw, page_order)
+            media_type = "application/pdf"
+            name = f"reordered_{uuid.uuid4().hex[:8]}.pdf"
+            kind = "pdf"
+
+        out_size = len(out_bytes)
+        token = save_result(
+            out_bytes,
+            media_type=media_type,
+            filename=name,
+            kind=kind,
+            original_size=len(raw),
+            compressed_size=out_size,
+            page_count=page_count,
+        )
+        return JSONResponse(
+            {
+                "result_url": f"/r/{token}",
+                "token": token,
+                "filename": name,
+                "media_type": media_type,
+                "original_size": len(raw),
+                "compressed_size": out_size,
+            }
+        )
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"error": internal_error_message(e)}, status_code=500)

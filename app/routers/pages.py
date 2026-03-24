@@ -24,43 +24,50 @@ _PAGE = {
     "compress_img": {
         "full": "compress_img.html",
         "fragment": "htmx/compress_img.html",
-        "page_title": "Image Compressor — Webbria",
+        "page_title": "Image Compressor",
         "tagline": "Smaller files, same pixels",
         "badge": "Compress",
     },
     "convert_img": {
         "full": "convert_img.html",
         "fragment": "htmx/convert_img.html",
-        "page_title": "Image Converter — Webbria",
+        "page_title": "Image Converter",
         "tagline": "Switch formats in one click",
         "badge": "Convert",
     },
     "compress_pdf": {
         "full": "compress_pdf.html",
         "fragment": "htmx/compress_pdf.html",
-        "page_title": "PDF Compressor — Webbria",
+        "page_title": "PDF Compressor",
         "tagline": "Structure-aware, not flattened",
         "badge": "PDF",
     },
     "pdf_to_img": {
         "full": "pdf_to_img.html",
         "fragment": "htmx/pdf_to_img.html",
-        "page_title": "PDF to images — Webbria",
+        "page_title": "PDF to images",
         "tagline": "Each page as an image in a ZIP",
         "badge": "PDF",
     },
     "img_to_pdf": {
         "full": "img_to_pdf.html",
         "fragment": "htmx/img_to_pdf.html",
-        "page_title": "Images to PDF — Webbria",
+        "page_title": "Images to PDF",
         "tagline": "Stack images into one document",
         "badge": "PDF",
     },
     "merge_pdf": {
         "full": "merge_pdf.html",
         "fragment": "htmx/merge_pdf.html",
-        "page_title": "Merge PDF — Webbria",
+        "page_title": "Merge PDF",
         "tagline": "Combine multiple PDFs in custom order",
+        "badge": "PDF",
+    },
+    "split_reorder_pdf": {
+        "full": "split_reorder_pdf.html",
+        "fragment": "htmx/split_reorder_pdf.html",
+        "page_title": "Split + Reorder PDF",
+        "tagline": "Split one PDF and reorder blocks or pages",
         "badge": "PDF",
     },
 }
@@ -117,3 +124,8 @@ async def img_to_pdf_page(request: Request):
 @router.get("/merge-pdf", name="merge_pdf")
 async def merge_pdf_page(request: Request):
     return _render_page(request, "merge_pdf")
+
+
+@router.get("/split-reorder-pdf", name="split_reorder_pdf")
+async def split_reorder_pdf_page(request: Request):
+    return _render_page(request, "split_reorder_pdf")

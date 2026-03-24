@@ -1,4 +1,4 @@
-"""Run the Webbria server (same default as the former Flask app)."""
+"""Run the server (same default as the former Flask app)."""
 
 import uvicorn
 

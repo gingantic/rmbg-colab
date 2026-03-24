@@ -1,4 +1,4 @@
-"""Webbria FastAPI application package."""
+"""FastAPI application package."""
 
 from contextlib import asynccontextmanager
 import threading

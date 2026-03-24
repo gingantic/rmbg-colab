@@ -276,7 +276,7 @@ def compress_pdf_bytes(
             else:
                 effective = mode
     except pikepdf.PasswordError as e:
-        raise ValueError("This PDF is password-protected. Webbria cannot decrypt it.") from e
+        raise ValueError("This PDF is password-protected and cannot be decrypted.") from e
     except pikepdf.PdfError as e:
         raise ValueError(f"Invalid or unreadable PDF: {e}") from e
 

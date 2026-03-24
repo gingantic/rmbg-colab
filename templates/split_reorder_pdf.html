@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block meta_description %}Split one PDF into parts and reorder pages or blocks before exporting as PDF or ZIP.{% endblock %}
+{% block title %}Split + Reorder PDF{% endblock %}
+
+{% block extra_head %}
+<script defer src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+{% endblock %}
+
+{% block logo_svg %}
+<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="32" height="32" rx="8" fill="url(#logo-grad-srpdf)"/>
+    <path d="M8 16C8 11.58 11.58 8 16 8V16H24C24 20.42 20.42 24 16 24C11.58 24 8 20.42 8 16Z" fill="white" fill-opacity="0.9"/>
+    <path d="M16 8C20.42 8 24 11.58 24 16H16V8Z" fill="white" fill-opacity="0.5"/>
+    <defs>
+        <linearGradient id="logo-grad-srpdf" x1="0" y1="0" x2="32" y2="32">
+            <stop stop-color="#2563eb"/>
+            <stop offset="1" stop-color="#14b8a6"/>
+        </linearGradient>
+    </defs>
+</svg>
+{% endblock %}
+{% block logo_badge %}PDF{% endblock %}
+{% block header_tagline %}Split one PDF and reorder blocks or pages{% endblock %}
+
+{% block tool_page %}
+{% include "partials/split_reorder_pdf.html" %}
+{% endblock %}
