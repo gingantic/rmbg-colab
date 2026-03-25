@@ -1,3 +1,6 @@
+# PyTorch CPU wheels only — avoids multi‑GB nvidia-* CUDA dependencies from PyPI defaults
+--extra-index-url https://download.pytorch.org/whl/cpu
+
 fastapi>=0.115,<1
 uvicorn[standard]>=0.32,<1
 python-multipart>=0.0.9
