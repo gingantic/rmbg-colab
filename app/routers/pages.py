@@ -70,6 +70,13 @@ _PAGE = {
         "tagline": "Split one PDF and reorder blocks or pages",
         "badge": "PDF",
     },
+    "extract_range_pdf": {
+        "full": "extract_range_pdf.html",
+        "fragment": "htmx/extract_range_pdf.html",
+        "page_title": "Extract PDF Pages",
+        "tagline": "Keep only a page range",
+        "badge": "PDF",
+    },
 }
 
 
@@ -129,3 +136,8 @@ async def merge_pdf_page(request: Request):
 @router.get("/split-reorder-pdf", name="split_reorder_pdf")
 async def split_reorder_pdf_page(request: Request):
     return _render_page(request, "split_reorder_pdf")
+
+
+@router.get("/extract-range-pdf", name="extract_range_pdf")
+async def extract_range_pdf_page(request: Request):
+    return _render_page(request, "extract_range_pdf")

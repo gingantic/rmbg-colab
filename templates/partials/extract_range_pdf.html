@@ -1,0 +1,115 @@
+<main class="main">
+    <div class="compress-pdf-tool" x-data="extractRangePdfTool()" x-init="init()">
+        <section class="section upload-section" x-show="step === 'upload'" x-cloak>
+            <div class="upload-card glass-card">
+                <div class="compress-controls">
+                    <div class="compress-controls-row layout-row layout-row--wrap layout-row--start">
+                        <div class="compress-field compress-field--grow">
+                            <label class="compress-field-label" for="page-range-input">Page range</label>
+                            <input
+                                id="page-range-input"
+                                type="text"
+                                class="compress-input"
+                                placeholder="5 or 3-7"
+                                x-model="pageRange"
+                                aria-describedby="page-range-hint"
+                            >
+                            <p id="page-range-hint" class="compress-hint">
+                                Enter a single page like <code>5</code> or a continuous range like <code>3-7</code>.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div
+                    class="drop-zone"
+                    :class="{ dragover: dragover }"
+                    @dragenter.prevent="dragover = true"
+                    @dragover.prevent="dragover = true"
+                    @dragleave.prevent="dragover = false"
+                    @drop.prevent="onDrop($event)"
+                    @click="pickFile()"
+                >
+                    <div class="drop-zone-content">
+                        <div class="upload-icon">
+                            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <circle cx="32" cy="32" r="30" stroke="url(#up-grad-extract)" stroke-width="2" stroke-dasharray="6 4" opacity="0.5"/>
+                                <path d="M24 20H40V44H24Z" stroke="url(#up-grad-extract)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M28 28H36V36H28Z" fill="url(#up-grad-extract)"/>
+                                <defs>
+                                    <linearGradient id="up-grad-extract" x1="0" y1="0" x2="64" y2="64">
+                                        <stop stop-color="#0ea5e9"/>
+                                        <stop offset="1" stop-color="#6366f1"/>
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                        </div>
+                        <h2 class="drop-zone-title">Drop one PDF</h2>
+                        <p class="drop-zone-subtitle">or <span class="browse-link">browse file</span></p>
+                        <p class="drop-zone-hint">PDF only — Max 20 MB</p>
+                    </div>
+                    <input x-ref="fileInput" type="file" accept=".pdf,application/pdf" hidden @change="onFileChange()">
+                </div>
+
+                <template x-if="pdfFile">
+                    <div class="merge-pdf-list glass-card" style="margin-top: 16px;">
+                        <div class="merge-pdf-list-head">
+                            <p class="merge-pdf-list-title">
+                                <span x-text="pdfFile ? pdfFile.name : ''"></span>
+                            </p>
+                        </div>
+                    </div>
+                </template>
+
+                <div class="merge-pdf-footer-actions">
+                    <span class="compress-hint">Output: one PDF containing only the selected pages</span>
+                    <button type="button" class="btn btn-primary" @click.stop="process()" :disabled="!pdfFile || !pageRange.trim()">Extract</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="section processing-section" x-show="step === 'processing'" x-cloak>
+            <div class="glass-card processing-card">
+                <div class="spinner"></div>
+                <h2 class="processing-title">Extracting pages…</h2>
+                <p class="processing-subtitle">Building a new PDF with the selected range</p>
+            </div>
+        </section>
+
+        <section class="section result-section" x-show="step === 'result'" x-cloak>
+            <div class="result-container">
+                <div class="compress-stats glass-card">
+                    <div class="compress-stat">
+                        <span class="compress-stat-label">Original</span>
+                        <span class="compress-stat-value" x-text="formatBytes(originalBytes)"></span>
+                    </div>
+                    <div class="compress-stat compress-stat--accent">
+                        <span class="compress-stat-label">Extracted</span>
+                        <span class="compress-stat-value" x-text="formatBytes(outputBytes)"></span>
+                    </div>
+                    <div class="compress-stat">
+                        <span class="compress-stat-label">File</span>
+                        <span class="compress-stat-value" x-text="resultFileLabel"></span>
+                    </div>
+                </div>
+                <div class="actions">
+                    <a class="btn btn-secondary" :href="resultServerPath || '#'" target="_blank" rel="noopener">Open</a>
+                    <button type="button" class="btn btn-primary" @click="downloadResult()">Download</button>
+                    <button type="button" class="btn btn-secondary" @click="goToUpload()">New file</button>
+                </div>
+            </div>
+        </section>
+
+        <div class="error-toast" :class="{ visible: toastVisible }" x-ref="errorToast">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="15" y1="9" x2="9" y2="15"/>
+                <line x1="9" y1="9" x2="15" y2="15"/>
+            </svg>
+            <span x-text="toastMessage"></span>
+        </div>
+    </div>
+</main>
+<footer class="footer">
+    <p>Page extraction powered by <a href="https://github.com/py-pdf/pypdf" target="_blank" rel="noopener">pypdf</a></p>
+</footer>
+

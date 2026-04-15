@@ -20,11 +20,13 @@ from app.services.pdf_merge import merge_pdf_bytes
 from app.services.pdf_compress import compress_pdf_bytes
 from app.services.pdf_to_images import PDF_TO_IMAGE_FORMATS, pdf_bytes_to_images_zip
 from app.services.pdf_split_reorder import (
+    build_range_pdf,
     build_reordered_pdf,
     build_split_zip,
     get_pdf_page_count,
     parse_block_order_json,
     parse_page_order_json,
+    parse_single_range,
     parse_split_blocks_json,
     parse_split_ranges,
 )
@@ -489,6 +491,56 @@ async def split_reorder_pdf_post(
                 "token": token,
                 "filename": name,
                 "media_type": media_type,
+                "original_size": len(raw),
+                "compressed_size": out_size,
+            }
+        )
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"error": internal_error_message(e)}, status_code=500)
+
+
+@router.post("/extract-range-pdf")
+async def extract_range_pdf_post(
+    pdf: UploadFile = File(...),
+    page_range: Annotated[str, Form()] = "",
+):
+    if not pdf.filename:
+        return JSONResponse({"error": "Empty filename."}, status_code=400)
+    if not allowed_pdf_file(pdf.filename):
+        return JSONResponse({"error": "Only PDF files are supported."}, status_code=400)
+
+    try:
+        raw = await pdf.read()
+        if not raw:
+            return JSONResponse({"error": "Empty file."}, status_code=400)
+
+        page_count = get_pdf_page_count(raw)
+        start, end = parse_single_range(page_range, page_count)
+        out_bytes = build_range_pdf(raw, start, end)
+
+        if start == end:
+            name = f"page_{start}_{uuid.uuid4().hex[:8]}.pdf"
+        else:
+            name = f"range_{start}-{end}_{uuid.uuid4().hex[:8]}.pdf"
+
+        out_size = len(out_bytes)
+        token = save_result(
+            out_bytes,
+            media_type="application/pdf",
+            filename=name,
+            kind="pdf",
+            original_size=len(raw),
+            compressed_size=out_size,
+            page_count=end - start + 1,
+        )
+        return JSONResponse(
+            {
+                "result_url": f"/r/{token}",
+                "token": token,
+                "filename": name,
+                "media_type": "application/pdf",
                 "original_size": len(raw),
                 "compressed_size": out_size,
             }

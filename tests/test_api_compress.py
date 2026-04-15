@@ -245,3 +245,41 @@ def test_split_reorder_pdf_rejects_duplicate_split_pages(client):
     r = client.post("/split-reorder-pdf", files=files, data=data)
     assert r.status_code == 400
     assert "error" in r.json()
+
+
+def test_extract_range_pdf_single_page(client):
+    raw = _multi_page_pdf_bytes(4)
+    files = {"pdf": ("src.pdf", raw, "application/pdf")}
+    data = {"page_range": "2"}
+    r = client.post("/extract-range-pdf", files=files, data=data)
+    assert r.status_code == 200
+    j = r.json()
+    assert j.get("result_url", "").startswith("/r/")
+    token = j["token"]
+    r2 = client.get(f"/r/{token}")
+    assert r2.status_code == 200
+    assert r2.headers.get("content-type") == "application/pdf"
+    parsed = PdfReader(io.BytesIO(r2.content))
+    assert len(parsed.pages) == 1
+
+
+def test_extract_range_pdf_range(client):
+    raw = _multi_page_pdf_bytes(6)
+    files = {"pdf": ("src.pdf", raw, "application/pdf")}
+    data = {"page_range": "2-5"}
+    r = client.post("/extract-range-pdf", files=files, data=data)
+    assert r.status_code == 200
+    j = r.json()
+    token = j["token"]
+    r2 = client.get(f"/r/{token}")
+    parsed = PdfReader(io.BytesIO(r2.content))
+    assert len(parsed.pages) == 4
+
+
+def test_extract_range_pdf_invalid_range(client):
+    raw = _multi_page_pdf_bytes(3)
+    files = {"pdf": ("src.pdf", raw, "application/pdf")}
+    data = {"page_range": "5-7"}
+    r = client.post("/extract-range-pdf", files=files, data=data)
+    assert r.status_code == 400
+    assert "error" in r.json()

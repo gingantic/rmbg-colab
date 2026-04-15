@@ -151,6 +151,60 @@ def get_pdf_page_count(raw_pdf: bytes) -> int:
     return len(_read_pdf(raw_pdf).pages)
 
 
+def parse_single_range(raw: str, page_count: int) -> tuple[int, int]:
+    """Parse a single page or N-M range into 1-based (start, end).
+
+    Accepts inputs like "5" or "3-7" and validates that:
+    - both bounds are integers
+    - 1 <= start <= end <= page_count
+    """
+    if page_count < 1:
+        raise ValueError("PDF has no pages.")
+
+    text = (raw or "").strip()
+    if not text:
+        raise ValueError("Page range is required.")
+
+    if "-" in text:
+        start_s, end_s = text.split("-", 1)
+        start_s = start_s.strip()
+        end_s = end_s.strip()
+        if not start_s.isdigit() or not end_s.isdigit():
+            raise ValueError("Enter a page like 5 or a range like 3-7.")
+        start = int(start_s)
+        end = int(end_s)
+    else:
+        if not text.isdigit():
+            raise ValueError("Enter a page like 5 or a range like 3-7.")
+        start = end = int(text)
+
+    if start < 1 or end < 1 or start > page_count or end > page_count:
+        raise ValueError(f"Page range must be within 1..{page_count}.")
+    if start > end:
+        raise ValueError("Start page cannot be greater than end page.")
+
+    return start, end
+
+
+def build_range_pdf(raw_pdf: bytes, start_page: int, end_page: int) -> bytes:
+    """Build a PDF containing only pages in the inclusive 1-based range."""
+    reader = _read_pdf(raw_pdf)
+    if start_page < 1 or end_page < 1:
+        raise ValueError("Page numbers must be positive.")
+    if start_page > end_page:
+        raise ValueError("Start page cannot be greater than end page.")
+    if end_page > len(reader.pages):
+        raise ValueError(f"Page range must be within 1..{len(reader.pages)}.")
+
+    writer = PdfWriter()
+    for num in range(start_page, end_page + 1):
+        writer.add_page(reader.pages[num - 1])
+    out = io.BytesIO()
+    writer.write(out)
+    writer.close()
+    return out.getvalue()
+
+
 def build_reordered_pdf(raw_pdf: bytes, page_order: list[int]) -> bytes:
     """Build a single PDF using a specific page order (0-based indices)."""
     reader = _read_pdf(raw_pdf)

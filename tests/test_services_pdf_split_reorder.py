@@ -8,10 +8,12 @@ import pytest
 from pypdf import PdfReader
 
 from app.services.pdf_split_reorder import (
+    build_range_pdf,
     build_reordered_pdf,
     build_split_zip,
     parse_block_order_json,
     parse_page_order_json,
+    parse_single_range,
     parse_split_ranges,
 )
 
@@ -35,6 +37,35 @@ def test_parse_split_ranges_invalid():
         parse_split_ranges("1-a|2", 3)
 
 
+@pytest.mark.parametrize(
+    "raw, page_count, expected",
+    [
+        ("1", 5, (1, 1)),
+        ("3-5", 5, (3, 5)),
+        ("  2 - 4 ", 10, (2, 4)),
+    ],
+)
+def test_parse_single_range_ok(raw, page_count, expected):
+    assert parse_single_range(raw, page_count) == expected
+
+
+@pytest.mark.parametrize(
+    "raw, page_count",
+    [
+        ("", 5),
+        ("a", 5),
+        ("1-b", 5),
+        ("5-3", 5),
+        ("0", 5),
+        ("6", 5),
+        ("2-7", 6),
+    ],
+)
+def test_parse_single_range_invalid(raw, page_count):
+    with pytest.raises(ValueError):
+        parse_single_range(raw, page_count)
+
+
 def test_parse_page_order_json_default_and_custom():
     assert parse_page_order_json("", 3) == [0, 1, 2]
     assert parse_page_order_json("[3,1,2]", 3) == [2, 0, 1]
@@ -48,6 +79,13 @@ def test_parse_block_order_json_default_and_custom():
 def test_build_reordered_pdf():
     raw = _multi_page_pdf_bytes(3)
     out = build_reordered_pdf(raw, [2, 0, 1])
+    parsed = PdfReader(io.BytesIO(out))
+    assert len(parsed.pages) == 3
+
+
+def test_build_range_pdf():
+    raw = _multi_page_pdf_bytes(5)
+    out = build_range_pdf(raw, 2, 4)
     parsed = PdfReader(io.BytesIO(out))
     assert len(parsed.pages) == 3
 

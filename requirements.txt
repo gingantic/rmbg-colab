@@ -11,7 +11,7 @@ torchvision
 transformers==4.45.2
 kornia
 pillow; platform_system == "Windows"
-pillow-simd; platform_system != "Windows"
+pillow-simd; platform_system != "Windows" and platform_machine == "x86_64"
 huggingface_hub
 timm
 python-dotenv

@@ -6,6 +6,13 @@ document.addEventListener('alpine:init', () => {
     Alpine.data('rmbgTool', () => ({
         step: 'upload',
         dragover: false,
+        isBatchMode: false,
+        batchCount: 0,
+        batchFileNames: [],
+        batchOriginalSizeText: '—',
+        batchOutputSizeText: '—',
+        batchZipUrl: null,
+        batchZipFilename: 'rmbg_batch.zip',
         originalPreviewUrl: '',
         resultBlobUrl: null,
         activeBgColor: null,
@@ -15,6 +22,12 @@ document.addEventListener('alpine:init', () => {
 
         MAX_SIZE_MB: 20,
         ALLOWED_TYPES: ['image/png', 'image/jpeg', 'image/webp', 'image/bmp', 'image/tiff'],
+
+        formatBytes(n) {
+            if (n < 1024) return `${n} B`;
+            if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+            return `${(n / (1024 * 1024)).toFixed(2)} MB`;
+        },
 
         showError(msg) {
             this.toastMessage = msg;
@@ -29,14 +42,29 @@ document.addEventListener('alpine:init', () => {
             }, 4000);
         },
 
+        isAllowedType(file) {
+            if (this.ALLOWED_TYPES.includes(file.type)) return true;
+            return /\.(png|jpe?g|webp|bmp|tiff?)$/i.test(file.name || '');
+        },
+
         validateFile(file) {
             if (!file) return 'No file selected.';
-            if (!this.ALLOWED_TYPES.includes(file.type)) return `Unsupported type: ${file.type || 'unknown'}`;
+            if (!this.isAllowedType(file)) return `Unsupported type: ${file.type || file.name || 'unknown'}`;
             if (file.size > this.MAX_SIZE_MB * 1024 * 1024) return `File too large (max ${this.MAX_SIZE_MB} MB).`;
             return null;
         },
 
-        goToUpload() {
+        resetBatchState() {
+            this.isBatchMode = false;
+            this.batchCount = 0;
+            this.batchFileNames = [];
+            this.batchOriginalSizeText = '—';
+            this.batchOutputSizeText = '—';
+            this.batchZipUrl = null;
+            this.batchZipFilename = 'rmbg_batch.zip';
+        },
+
+        clearResultUrls() {
             if (this.resultBlobUrl) {
                 URL.revokeObjectURL(this.resultBlobUrl);
                 this.resultBlobUrl = null;
@@ -45,6 +73,11 @@ document.addEventListener('alpine:init', () => {
                 URL.revokeObjectURL(this.originalPreviewUrl);
                 this.originalPreviewUrl = '';
             }
+        },
+
+        goToUpload() {
+            this.clearResultUrls();
+            this.resetBatchState();
             this.step = 'upload';
             this.activeBgColor = null;
             this.$nextTick(() => this.resetResultBackground());
@@ -111,25 +144,64 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
-        async processImage(file) {
-            const err = this.validateFile(file);
-            if (err) {
-                this.showError(err);
+        async processSelection(files) {
+            const pickedFiles = Array.from(files || []);
+            if (!pickedFiles.length) return;
+
+            for (const file of pickedFiles) {
+                const err = this.validateFile(file);
+                if (err) {
+                    this.showError(`${file.name}: ${err}`);
+                    return;
+                }
+            }
+
+            this.clearResultUrls();
+            this.resetBatchState();
+            this.step = 'processing';
+
+            if (pickedFiles.length === 1) {
+                const file = pickedFiles[0];
+                const originalUrl = URL.createObjectURL(file);
+                this.originalPreviewUrl = originalUrl;
+                try {
+                    const formData = new FormData();
+                    formData.append('image', file);
+                    const res = await fetch('/remove-bg', { method: 'POST', body: formData });
+                    if (!res.ok) {
+                        const data = await res.json().catch(() => ({}));
+                        throw new Error(data.error || `Server error (${res.status})`);
+                    }
+                    const blob = await res.blob();
+                    this.resultBlobUrl = URL.createObjectURL(blob);
+                    this.isBatchMode = false;
+                    this.step = 'result';
+                    this.$nextTick(() => this.resetResultBackground());
+                } catch (e) {
+                    this.showError(e.message || 'Something went wrong.');
+                    this.goToUpload();
+                }
                 return;
             }
-            const originalUrl = URL.createObjectURL(file);
-            this.originalPreviewUrl = originalUrl;
-            this.step = 'processing';
-            const formData = new FormData();
-            formData.append('image', file);
+
+            this.isBatchMode = true;
+            this.batchCount = pickedFiles.length;
+            this.batchFileNames = pickedFiles.map((file) => file.name);
+            const totalInputBytes = pickedFiles.reduce((sum, file) => sum + file.size, 0);
+            this.batchOriginalSizeText = this.formatBytes(totalInputBytes);
+
             try {
+                const formData = new FormData();
+                pickedFiles.forEach((file) => formData.append('images', file));
                 const res = await fetch('/remove-bg', { method: 'POST', body: formData });
                 if (!res.ok) {
                     const data = await res.json().catch(() => ({}));
                     throw new Error(data.error || `Server error (${res.status})`);
                 }
-                const blob = await res.blob();
-                this.resultBlobUrl = URL.createObjectURL(blob);
+                const data = await res.json();
+                this.batchZipUrl = data.result_url || null;
+                this.batchZipFilename = data.filename || 'rmbg_batch.zip';
+                this.batchOutputSizeText = this.formatBytes(data.compressed_size || 0);
                 this.step = 'result';
             } catch (e) {
                 this.showError(e.message || 'Something went wrong.');
@@ -143,8 +215,8 @@ document.addEventListener('alpine:init', () => {
 
         onFileChange() {
             const input = this.$refs.fileInput;
-            const file = input.files[0];
-            if (file) this.processImage(file);
+            const files = Array.from(input.files || []);
+            if (files.length) this.processSelection(files);
             input.value = '';
         },
 
@@ -152,8 +224,8 @@ document.addEventListener('alpine:init', () => {
             e.preventDefault();
             e.stopPropagation();
             this.dragover = false;
-            const file = e.dataTransfer.files[0];
-            if (file) this.processImage(file);
+            const files = Array.from(e.dataTransfer.files || []);
+            if (files.length) this.processSelection(files);
         },
 
         downloadPng() {
@@ -198,6 +270,16 @@ document.addEventListener('alpine:init', () => {
             } catch (e) {
                 this.showError(e.message || 'Failed to generate background image.');
             }
+        },
+
+        downloadBatchZip() {
+            if (!this.batchZipUrl) return;
+            const a = document.createElement('a');
+            a.href = this.batchZipUrl;
+            a.download = this.batchZipFilename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
         },
     }));
 });

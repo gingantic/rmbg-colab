@@ -2,7 +2,7 @@
 
 import io
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 from app.config import get_settings
 
@@ -24,5 +24,8 @@ def open_uploaded_image(raw: bytes) -> Image.Image:
     """
     im = Image.open(io.BytesIO(raw))
     im.load()
+    # Apply EXIF orientation so pixel data matches what browsers show (portrait JPEGs
+    # are often stored sideways with Orientation metadata).
+    im = ImageOps.exif_transpose(im)
     ensure_image_within_limits(im)
     return im
