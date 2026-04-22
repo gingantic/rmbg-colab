@@ -9,6 +9,11 @@
     'use strict';
 
     const FEATURE_NAV_COLLAPSED = 'feature-nav--collapsed';
+    const MOBILE_FEATURE_NAV_MEDIA_QUERY = '(max-width: 640px)';
+
+    function isMobileFeatureNavViewport() {
+        return window.matchMedia(MOBILE_FEATURE_NAV_MEDIA_QUERY).matches;
+    }
 
     function featureNavFirstRowHeight(linksEl) {
         const first = linksEl.querySelector('.feature-nav__link');
@@ -46,6 +51,12 @@
 
             const rowH = featureNavFirstRowHeight(links);
             const multiLine = links.scrollHeight > rowH + 1;
+            const shouldAutoCollapse = isMobileFeatureNavViewport() && multiLine && !nav._featureNavUserToggled && !nav._featureNavAutoCollapsedDone;
+
+            if (shouldAutoCollapse) {
+                nav.classList.add(FEATURE_NAV_COLLAPSED);
+                nav._featureNavAutoCollapsedDone = true;
+            }
 
             if (wasCollapsed && multiLine) {
                 nav.classList.add(FEATURE_NAV_COLLAPSED);
@@ -106,6 +117,7 @@
         const nav = btn.closest('.feature-nav');
         if (!nav) return;
         e.preventDefault();
+        nav._featureNavUserToggled = true;
         nav.classList.toggle(FEATURE_NAV_COLLAPSED);
         featureNavSyncToggle(nav);
     });

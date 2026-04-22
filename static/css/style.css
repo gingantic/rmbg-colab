@@ -958,6 +958,7 @@ body::before {
     }
 
     .header-tagline {
+        display: none;
         grid-column: 1;
         grid-row: auto;
         justify-self: start;

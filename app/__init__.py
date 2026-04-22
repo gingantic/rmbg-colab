@@ -11,7 +11,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.staticfiles import StaticFiles
 
 from app.config import get_settings, should_preload_rmbg, should_preload_upscaler
-from app.routers import compress, pages, results, rmbg
+from app.routers import compress, pages, results, rmbg, transcribe
 from app.services.image_upscale import preload_upscaler_models
 from app.services.rmbg import ensure_rmbg_loaded
 
@@ -38,6 +38,12 @@ class LimitUploadSizeMiddleware(BaseHTTPMiddleware):
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    settings = get_settings()
+    if not (settings.hf_token or "").strip():
+        print(
+            "[WARN] HF_TOKEN is not set. "
+            "RMBG and audio diarization features may fail until it is configured."
+        )
     if should_preload_rmbg():
         threading.Thread(target=ensure_rmbg_loaded, daemon=True).start()
     if should_preload_upscaler():
@@ -60,6 +66,7 @@ def create_app() -> FastAPI:
     application.include_router(pages.router)
     application.include_router(rmbg.router)
     application.include_router(compress.router)
+    application.include_router(transcribe.router)
     application.include_router(results.router)
 
     return application

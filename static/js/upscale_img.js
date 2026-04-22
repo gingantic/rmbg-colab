@@ -6,7 +6,7 @@ document.addEventListener('alpine:init', () => {
     Alpine.data('upscaleImgTool', () => ({
         step: 'upload',
         mode: 'general',
-        scale: 4,
+        scale: 2,
         dragover: false,
         originalPreviewUrl: '',
         resultServerPath: null,

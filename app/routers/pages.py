@@ -84,6 +84,13 @@ _PAGE = {
         "tagline": "Keep only a page range",
         "badge": "PDF",
     },
+    "transcribe_audio": {
+        "full": "transcribe_audio.html",
+        "fragment": "htmx/transcribe_audio.html",
+        "page_title": "Audio Transcriber",
+        "tagline": "Batch transcription with speaker diarization",
+        "badge": "ASR",
+    },
 }
 
 
@@ -153,3 +160,8 @@ async def split_reorder_pdf_page(request: Request):
 @router.get("/extract-range-pdf", name="extract_range_pdf")
 async def extract_range_pdf_page(request: Request):
     return _render_page(request, "extract_range_pdf")
+
+
+@router.get("/transcribe-audio", name="transcribe_audio")
+async def transcribe_audio_page(request: Request):
+    return _render_page(request, "transcribe_audio")

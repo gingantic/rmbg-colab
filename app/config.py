@@ -5,7 +5,7 @@ Environment variables
 
 **Limits (optional; defaults are safe for small deployments)**
 
-- ``MAX_UPLOAD_BYTES`` — Max multipart body size in bytes (default: 20 MiB).
+- ``MAX_UPLOAD_BYTES`` — Max multipart body size in bytes (default: 1 GiB).
 - ``MAX_IMAGE_PIXELS`` — Pillow decompression cap; also enforced after decode (default: 25_000_000).
 - ``MAX_IMAGE_EDGE_PX`` — Reject images whose width or height exceeds this (default: 16384).
 - ``MAX_PDF_PAGES`` — Reject PDFs with more pages than this (default: 500).
@@ -32,6 +32,23 @@ Environment variables
   (default: ``.cache/upscaler-models``).
 - ``UPSCALER_MAX_OUTPUT_EDGE_PX`` — Max width/height allowed after upscale (default: 8192).
 - ``UPSCALER_PRELOAD`` — Set to ``1`` / ``true`` / ``yes`` to preload upscaler models at startup.
+
+**Audio transcription + diarization**
+
+- ``TRANSCRIBE_ASR_MODEL`` — ASR model for WhisperX/faster-whisper (default: ``large-v3``).
+- ``TRANSCRIBE_DEVICE`` — ``auto``, ``cpu``, or ``cuda`` (default: ``auto``).
+- ``TRANSCRIBE_COMPUTE_TYPE`` — ``auto`` (recommended), or runtime-specific values like
+  ``float16``/``int8``.
+- ``TRANSCRIBE_BATCH_SIZE`` — Whisper inference batch size (default: 16).
+- ``TRANSCRIBE_LANGUAGE_HINT`` — Default ASR language (e.g. ``id``). Set empty for auto-detect.
+  Also passed to WhisperX at model load (avoids a misleading no-language log at startup).
+- ``TRANSCRIBE_BEAM_SIZE`` — Beam size for decoding (default: 5). Higher can improve accuracy.
+- ``TRANSCRIBE_BEST_OF`` — Number of candidate decodes sampled per segment (default: 5).
+- ``TRANSCRIBE_INITIAL_PROMPT`` — Optional decoding prompt to bias colloquial/code-switched speech.
+- ``TRANSCRIBE_CONDITION_ON_PREV_TEXT`` — ``1``/``true``/``yes`` to condition on prior segment text.
+- ``TRANSCRIBE_DIARIZATION_MODEL`` — pyannote diarization pipeline
+  (default: ``pyannote/speaker-diarization-3.1``).
+- ``HF_TOKEN`` — Hugging Face token for pyannote diarization model access.
 """
 
 import os
@@ -47,7 +64,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     max_upload_bytes: int = Field(
-        default=20 * 1024 * 1024,
+        default=1024 * 1024 * 1024,
         description="Maximum upload body size in bytes.",
     )
     max_image_pixels: int = Field(
@@ -84,6 +101,59 @@ class Settings(BaseSettings):
         default=8192,
         ge=1,
         description="Maximum width or height allowed for upscaled output images.",
+    )
+    hf_token: str | None = Field(
+        default=None,
+        description="Hugging Face token used by gated models (RMBG and diarization).",
+    )
+    transcribe_asr_model: str = Field(
+        default="large-v3",
+        description="High-accuracy multilingual Whisper model used by whisperx/faster-whisper.",
+    )
+    transcribe_device: str = Field(
+        default="auto",
+        description="Transcription inference device: auto, cpu, or cuda.",
+    )
+    transcribe_compute_type: str = Field(
+        default="auto",
+        description="Compute precision for faster-whisper runtime.",
+    )
+    transcribe_batch_size: int = Field(
+        default=16,
+        ge=1,
+        le=128,
+        description="Batch size for ASR transcription pass.",
+    )
+    transcribe_language_hint: str = Field(
+        default="",
+        description="Default ASR language hint. Empty string = auto-detect.",
+    )
+    transcribe_beam_size: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description="Beam size for ASR decoding; higher can improve noisy/colloquial speech.",
+    )
+    transcribe_best_of: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description="Best-of candidates for decoding; higher may improve recognition quality.",
+    )
+    transcribe_initial_prompt: str = Field(
+        default=(
+            "Natural conversational speech, including slang, filler words, and "
+            "code-switching between Indonesian and English."
+        ),
+        description="Optional ASR initial prompt to improve casual/code-switched transcription.",
+    )
+    transcribe_condition_on_prev_text: bool = Field(
+        default=True,
+        description="Condition decoding on previous segment text for continuity.",
+    )
+    transcribe_diarization_model: str = Field(
+        default="pyannote/speaker-diarization-3.1",
+        description="High-accuracy Hugging Face model id for pyannote diarization pipeline.",
     )
 
 

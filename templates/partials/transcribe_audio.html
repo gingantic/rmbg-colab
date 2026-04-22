@@ -1,0 +1,111 @@
+<main class="main">
+    <div class="compress-img-tool" x-data="transcribeAudioTool()" x-init="init()">
+        <section class="section upload-section" x-show="step === 'upload'" x-cloak>
+            <div class="upload-card glass-card">
+                <div class="compress-controls">
+                    <div class="compress-controls-row layout-row layout-row--wrap layout-row--start">
+                        <label class="compress-field" for="transcribe-format-select">
+                            <span class="compress-field-label">Output format</span>
+                            <select id="transcribe-format-select" class="compress-select" x-model="format">
+                                <option value="json">JSON (full transcript)</option>
+                                <option value="srt">SRT (subtitles)</option>
+                                <option value="vtt">VTT (web subtitles)</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="compress-controls-row layout-row layout-row--wrap layout-row--start">
+                        <p class="compress-hint">Language is auto-detected by model. Uses async processing for long audio (1 hour+) to prevent request timeout.</p>
+                    </div>
+                </div>
+
+                <div
+                    class="drop-zone"
+                    :class="{ dragover: dragover }"
+                    @dragenter.prevent="dragover = true"
+                    @dragover.prevent="dragover = true"
+                    @dragleave.prevent="dragover = false"
+                    @drop.prevent="onDrop($event)"
+                    @click="pickFile()"
+                >
+                    <div class="drop-zone-content">
+                        <div class="upload-icon">
+                            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="32" cy="32" r="30" stroke="url(#up-grad-transcribe)" stroke-width="2" stroke-dasharray="6 4" opacity="0.5"/>
+                                <rect x="24" y="16" width="16" height="22" rx="8" stroke="url(#up-grad-transcribe)" stroke-width="2.5"/>
+                                <line x1="20" y1="30" x2="12" y2="30" stroke="url(#up-grad-transcribe)" stroke-width="2.5" stroke-linecap="round"/>
+                                <line x1="52" y1="30" x2="44" y2="30" stroke="url(#up-grad-transcribe)" stroke-width="2.5" stroke-linecap="round"/>
+                                <defs>
+                                    <linearGradient id="up-grad-transcribe" x1="0" y1="0" x2="64" y2="64">
+                                        <stop stop-color="#6366f1"/>
+                                        <stop offset="1" stop-color="#a855f7"/>
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                        </div>
+                        <h2 class="drop-zone-title">Drop audio to transcribe</h2>
+                        <p class="drop-zone-subtitle">or <span class="browse-link">browse files</span></p>
+                        <p class="drop-zone-hint">WAV, MP3, M4A, FLAC, OGG, OPUS, WEBM, MP4, AAC, WMA</p>
+                    </div>
+                    <input x-ref="fileInput" type="file" accept=".wav,.mp3,.m4a,.flac,.ogg,.opus,.webm,.mp4,.aac,.wma,audio/*" hidden @change="onFileChange()">
+                </div>
+            </div>
+        </section>
+
+        <section class="section processing-section" x-show="step === 'processing'" x-cloak>
+            <div class="glass-card processing-card">
+                <div class="spinner"></div>
+                <h2 class="processing-title">Transcribing...</h2>
+                <p class="processing-subtitle" x-text="processingMessage"></p>
+                <p class="processing-subtitle" x-show="jobId">Job ID: <span x-text="jobId"></span></p>
+            </div>
+        </section>
+
+        <section class="section result-section" x-show="step === 'result'" x-cloak>
+            <div class="result-container">
+                <div class="compress-stats glass-card">
+                    <div class="compress-stat">
+                        <span class="compress-stat-label">Input</span>
+                        <span class="compress-stat-value" x-text="originalSizeText"></span>
+                    </div>
+                    <div class="compress-stat">
+                        <span class="compress-stat-label">Output format</span>
+                        <span class="compress-stat-value" x-text="format.toUpperCase()"></span>
+                    </div>
+                    <div class="compress-stat compress-stat--accent">
+                        <span class="compress-stat-label">Status</span>
+                        <span class="compress-stat-value">Done</span>
+                    </div>
+                </div>
+
+                <div class="glass-card" style="padding: 1rem;" x-show="format === 'json' && transcriptText">
+                    <p class="compress-hint" style="margin-bottom: .5rem;">Transcript preview</p>
+                    <pre style="max-height: 280px; overflow: auto; white-space: pre-wrap;" x-text="transcriptText"></pre>
+                </div>
+
+                <div class="actions">
+                    <button type="button" class="btn btn-secondary" @click="goToUpload()">New Audio</button>
+                    <button type="button" class="btn btn-primary" @click="downloadResult()" :disabled="!downloadUrl && !jsonBlobUrl">Download</button>
+                </div>
+            </div>
+        </section>
+
+        <div id="transcribe-error-toast" class="error-toast" :class="{ visible: toastVisible }" x-ref="errorToast">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="15" y1="9" x2="9" y2="15"/>
+                <line x1="9" y1="9" x2="15" y2="15"/>
+            </svg>
+            <span x-text="toastMessage"></span>
+            <button
+                type="button"
+                @click.stop="closeToast()"
+                aria-label="Close error toast"
+                style="margin-left: 10px; background: transparent; border: 0; color: inherit; cursor: pointer; font-size: 18px; line-height: 1;"
+            >×</button>
+        </div>
+    </div>
+</main>
+<footer class="footer">
+    <p>Open-source WhisperX + pyannote diarization with async long-job handling</p>
+</footer>
+
