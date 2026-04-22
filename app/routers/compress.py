@@ -1,5 +1,6 @@
-"""POST /compress-img, /compress-pdf, /pdf-to-img, /img-to-pdf."""
+"""POST /compress-img, /upscale-img, /compress-pdf, /pdf-to-img, /img-to-pdf."""
 
+import asyncio
 import uuid
 from typing import Annotated
 
@@ -15,6 +16,7 @@ from app.services.image_compress import (
     convert_to_buffer,
     normalize_image_format,
 )
+from app.services.image_upscale import UPSCALE_MODES, upscale_to_buffer
 from app.services.images_to_pdf import images_bytes_to_pdf
 from app.services.pdf_merge import merge_pdf_bytes
 from app.services.pdf_compress import compress_pdf_bytes
@@ -37,6 +39,7 @@ from app.utils import (
     allowed_pdf_file,
     normalize_quality,
     normalize_scale_percent,
+    normalize_upscale_factor,
 )
 from app.utils.image_safe import open_uploaded_image
 from app.utils.safe_errors import internal_error_message
@@ -119,6 +122,23 @@ async def compress_img_post(
             {"error": "Image is too large or too complex."},
             status_code=400,
         )
+    except MemoryError:
+        return JSONResponse(
+            {
+                "error": "Upscaler ran out of memory. Try a smaller image or lower scale (2x/3x).",
+            },
+            status_code=400,
+        )
+    except RuntimeError as e:
+        msg = str(e).lower()
+        if "out of memory" in msg or "cuda" in msg:
+            return JSONResponse(
+                {
+                    "error": "Upscaler ran out of memory. Try a smaller image or lower scale (2x/3x).",
+                },
+                status_code=400,
+            )
+        return JSONResponse({"error": internal_error_message(e)}, status_code=500)
     except Exception as e:
         return JSONResponse({"error": internal_error_message(e)}, status_code=500)
 
@@ -175,6 +195,77 @@ async def convert_img_post(
                 "media_type": mimetype,
                 "original_size": orig_size,
                 "compressed_size": out_size,
+            }
+        )
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    except Image.DecompressionBombError:
+        return JSONResponse(
+            {"error": "Image is too large or too complex."},
+            status_code=400,
+        )
+    except Exception as e:
+        return JSONResponse({"error": internal_error_message(e)}, status_code=500)
+
+
+@router.post("/upscale-img")
+async def upscale_img_post(
+    image: UploadFile = File(...),
+    mode: Annotated[str, Form()] = "general",
+    scale: Annotated[str, Form()] = "4",
+):
+    if not image.filename:
+        return JSONResponse({"error": "Empty filename."}, status_code=400)
+
+    if not allowed_file(image.filename):
+        return JSONResponse(
+            {
+                "error": f'Unsupported file type. Allowed: {", ".join(sorted(ALLOWED_EXTENSIONS))}',
+            },
+            status_code=400,
+        )
+
+    selected_mode = (mode or "general").strip().lower()
+    if selected_mode not in UPSCALE_MODES:
+        return JSONResponse(
+            {"error": "Invalid mode. Use 'general' or 'animation'."},
+            status_code=400,
+        )
+    selected_scale = normalize_upscale_factor(scale)
+
+    try:
+        raw = await image.read()
+        if not raw:
+            return JSONResponse({"error": "Empty file."}, status_code=400)
+        im = open_uploaded_image(raw)
+        buf, mimetype, ext = await asyncio.to_thread(
+            upscale_to_buffer,
+            im,
+            selected_mode,
+            selected_scale,
+        )
+        data = buf.getvalue()
+        name = f"upscaled_{selected_mode}_{selected_scale}x_{uuid.uuid4().hex[:8]}.{ext}"
+        orig_size = len(raw)
+        out_size = len(data)
+        token = save_result(
+            data,
+            media_type=mimetype,
+            filename=name,
+            kind="image",
+            original_size=orig_size,
+            compressed_size=out_size,
+        )
+        return JSONResponse(
+            {
+                "result_url": f"/r/{token}",
+                "token": token,
+                "filename": name,
+                "media_type": mimetype,
+                "original_size": orig_size,
+                "compressed_size": out_size,
+                "mode": selected_mode,
+                "scale": selected_scale,
             }
         )
     except ValueError as e:

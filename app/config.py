@@ -25,6 +25,13 @@ Environment variables
 
 - ``HF_TOKEN`` — Hugging Face token for RMBG-2.0 (required for that feature).
 - ``RMBG_PRELOAD`` — Set to ``0`` / ``false`` / ``no`` to skip loading the model at startup.
+
+**Image upscaler**
+
+- ``UPSCALER_MODELS_DIR`` — Directory used to cache Real-ESRGAN checkpoints
+  (default: ``.cache/upscaler-models``).
+- ``UPSCALER_MAX_OUTPUT_EDGE_PX`` — Max width/height allowed after upscale (default: 8192).
+- ``UPSCALER_PRELOAD`` — Set to ``1`` / ``true`` / ``yes`` to preload upscaler models at startup.
 """
 
 import os
@@ -69,6 +76,15 @@ class Settings(BaseSettings):
         ge=1,
         description="In-memory compress outputs under /r/{token} expire after this many hours.",
     )
+    upscaler_models_dir: str = Field(
+        default=".cache/upscaler-models",
+        description="Directory for local upscaler checkpoint cache.",
+    )
+    upscaler_max_output_edge_px: int = Field(
+        default=8192,
+        ge=1,
+        description="Maximum width or height allowed for upscaled output images.",
+    )
 
 
 @lru_cache
@@ -96,3 +112,8 @@ def should_preload_rmbg() -> bool:
     if os.environ.get("RMBG_PRELOAD", "1").lower() in ("0", "false", "no"):
         return False
     return bool(os.environ.get("HF_TOKEN"))
+
+
+def should_preload_upscaler() -> bool:
+    """Return True if upscaler models should preload during startup."""
+    return os.environ.get("UPSCALER_PRELOAD", "0").lower() in ("1", "true", "yes")

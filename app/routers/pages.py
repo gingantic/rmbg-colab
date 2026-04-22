@@ -35,6 +35,13 @@ _PAGE = {
         "tagline": "Switch formats in one click",
         "badge": "Convert",
     },
+    "upscale_img": {
+        "full": "upscale_img.html",
+        "fragment": "htmx/upscale_img.html",
+        "page_title": "Image Upscaler",
+        "tagline": "Enhance detail for photos or animation",
+        "badge": "Upscale",
+    },
     "compress_pdf": {
         "full": "compress_pdf.html",
         "fragment": "htmx/compress_pdf.html",
@@ -111,6 +118,11 @@ async def compress_img_page(request: Request):
 @router.get("/convert-img", name="convert_img")
 async def convert_img_page(request: Request):
     return _render_page(request, "convert_img")
+
+
+@router.get("/upscale-img", name="upscale_img")
+async def upscale_img_page(request: Request):
+    return _render_page(request, "upscale_img")
 
 
 @router.get("/compress-pdf", name="compress_pdf")

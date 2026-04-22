@@ -9,6 +9,8 @@
                hx-get="/compress-img" hx-target="#htmx-page" hx-swap="innerHTML" hx-push-url="true">Image compressor</a>
             <a href="/convert-img" class="feature-nav__link{% if active == 'convert_img' %} feature-nav__link--active{% endif %}"{% if active == 'convert_img' %} aria-current="page"{% endif %}
                hx-get="/convert-img" hx-target="#htmx-page" hx-swap="innerHTML" hx-push-url="true">Image converter</a>
+            <a href="/upscale-img" class="feature-nav__link{% if active == 'upscale_img' %} feature-nav__link--active{% endif %}"{% if active == 'upscale_img' %} aria-current="page"{% endif %}
+               hx-get="/upscale-img" hx-target="#htmx-page" hx-swap="innerHTML" hx-push-url="true">Image upscaler</a>
             <a href="/compress-pdf" class="feature-nav__link{% if active == 'compress_pdf' %} feature-nav__link--active{% endif %}"{% if active == 'compress_pdf' %} aria-current="page"{% endif %}
                hx-get="/compress-pdf" hx-target="#htmx-page" hx-swap="innerHTML" hx-push-url="true">PDF compressor</a>
             <a href="/pdf-to-img" class="feature-nav__link{% if active == 'pdf_to_img' %} feature-nav__link--active{% endif %}"{% if active == 'pdf_to_img' %} aria-current="page"{% endif %}
