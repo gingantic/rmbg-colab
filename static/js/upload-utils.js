@@ -3,12 +3,12 @@
 // ================================================================
 
 /**
- * Upload formData to url via XHR, calling onProgress(0–100) as bytes are sent.
+ * Upload formData to url via XHR, calling onProgress(0-100, detail) as bytes are sent.
  * Resolves with the parsed JSON response body, rejects on network or HTTP errors.
  *
  * @param {string} url
  * @param {FormData} formData
- * @param {(pct: number) => void} onProgress
+ * @param {(pct: number, detail?: { loaded: number, total: number, lengthComputable: boolean }) => void} onProgress
  * @returns {Promise<object>}
  */
 function uploadXHR(url, formData, onProgress) {
@@ -18,7 +18,11 @@ function uploadXHR(url, formData, onProgress) {
 
         xhr.upload.addEventListener('progress', (e) => {
             if (e.lengthComputable) {
-                onProgress(Math.round((e.loaded / e.total) * 100));
+                onProgress(Math.round((e.loaded / e.total) * 100), {
+                    loaded: e.loaded,
+                    total: e.total,
+                    lengthComputable: e.lengthComputable,
+                });
             }
         });
 

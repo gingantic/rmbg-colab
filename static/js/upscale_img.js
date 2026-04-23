@@ -10,6 +10,8 @@ document.addEventListener('alpine:init', () => {
         dragover: false,
         uploadProgress: 0,
         uploadPhase: 'uploading',
+        uploadSpeedText: '—',
+        uploadRemainingText: '—',
         originalPreviewUrl: '',
         resultServerPath: null,
         originalSizeText: '-',
@@ -58,6 +60,8 @@ document.addEventListener('alpine:init', () => {
             this.resultServerPath = null;
             this.originalSizeText = '-';
             this.upscaledSizeText = '-';
+            this.uploadSpeedText = '—';
+            this.uploadRemainingText = '—';
         },
 
         async upscaleFile(file) {
@@ -70,14 +74,24 @@ document.addEventListener('alpine:init', () => {
             this.originalPreviewUrl = originalUrl;
             this.uploadProgress = 0;
             this.uploadPhase = 'uploading';
+            this.uploadSpeedText = '—';
+            this.uploadRemainingText = this.formatBytes(file.size || 0);
             this.step = 'processing';
+            const uploadStartedAt = Date.now();
             const formData = new FormData();
             formData.append('image', file);
             formData.append('mode', this.mode);
             formData.append('scale', String(this.scale));
             try {
-                const data = await uploadXHR('/upscale-img', formData, (pct) => {
+                const data = await uploadXHR('/upscale-img', formData, (pct, detail) => {
                     this.uploadProgress = pct;
+                    if (detail && detail.lengthComputable) {
+                        const elapsedSeconds = Math.max((Date.now() - uploadStartedAt) / 1000, 0.001);
+                        const bytesPerSecond = detail.loaded / elapsedSeconds;
+                        const remainingBytes = Math.max(detail.total - detail.loaded, 0);
+                        this.uploadSpeedText = `${this.formatBytes(Math.max(Math.round(bytesPerSecond), 0))}/s`;
+                        this.uploadRemainingText = this.formatBytes(remainingBytes);
+                    }
                     if (pct >= 100) this.uploadPhase = 'processing';
                 });
                 this.resultServerPath = data.result_url;

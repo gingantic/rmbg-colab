@@ -14,7 +14,7 @@
                         </label>
                     </div>
                     <div class="compress-controls-row layout-row layout-row--wrap layout-row--start">
-                        <p class="compress-hint">Language is auto-detected by model. Uses async processing for long audio (1 hour+) to prevent request timeout.</p>
+                        <p class="compress-hint">Language is auto-detected by model.</p>
                     </div>
                 </div>
 
@@ -60,6 +60,8 @@
                             <div class="upload-progress-fill" :style="`width: ${uploadProgress}%`"></div>
                         </div>
                         <p class="upload-progress-label" x-text="`${uploadProgress}%`"></p>
+                        <p class="processing-subtitle">Speed: <span x-text="uploadSpeedText"></span></p>
+                        <p class="processing-subtitle">Remaining data: <span x-text="uploadRemainingText"></span></p>
                     </div>
                 </template>
                 <template x-if="uploadPhase === 'processing'">
@@ -119,6 +121,6 @@
     </div>
 </main>
 <footer class="footer">
-    <p>Open-source WhisperX + pyannote diarization with async long-job handling</p>
+    <p>Open-source WhisperX + pyannote diarization</p>
 </footer>
 

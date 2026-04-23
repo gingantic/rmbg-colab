@@ -24,7 +24,8 @@ Environment variables
 **Background removal**
 
 - ``HF_TOKEN`` — Hugging Face token for RMBG-2.0 (required for that feature).
-- ``RMBG_PRELOAD`` — Set to ``0`` / ``false`` / ``no`` to skip loading the model at startup.
+- ``RMBG_PRELOAD`` — Set to ``1`` / ``true`` / ``yes`` to preload the model at startup
+  (default: disabled).
 
 **Image upscaler**
 
@@ -49,6 +50,10 @@ Environment variables
 - ``TRANSCRIBE_DIARIZATION_MODEL`` — pyannote diarization pipeline
   (default: ``pyannote/speaker-diarization-3.1``).
 - ``HF_TOKEN`` — Hugging Face token for pyannote diarization model access.
+- ``TRANSCRIBE_PRELOAD`` — Set to ``1`` / ``true`` / ``yes`` to preload/download
+  ASR + diarization models at startup (default: disabled).
+- ``HF_VERIFY_GATED_ACCESS`` — Set to ``0`` / ``false`` / ``no`` to skip proactive
+  Hugging Face gated-access agreement checks before model load.
 """
 
 import os
@@ -155,6 +160,14 @@ class Settings(BaseSettings):
         default="pyannote/speaker-diarization-3.1",
         description="High-accuracy Hugging Face model id for pyannote diarization pipeline.",
     )
+    transcribe_preload: bool = Field(
+        default=False,
+        description="Preload/download transcription models during application startup.",
+    )
+    hf_verify_gated_access: bool = Field(
+        default=True,
+        description="Verify gated Hugging Face model access (token + agreement) before load.",
+    )
 
 
 @lru_cache
@@ -179,11 +192,16 @@ def expose_error_details() -> bool:
 
 def should_preload_rmbg() -> bool:
     """Return True to start background RMBG model load when ``HF_TOKEN`` is set."""
-    if os.environ.get("RMBG_PRELOAD", "1").lower() in ("0", "false", "no"):
-        return False
-    return bool(os.environ.get("HF_TOKEN"))
+    return os.environ.get("RMBG_PRELOAD", "0").lower() in ("1", "true", "yes") and bool(
+        os.environ.get("HF_TOKEN")
+    )
 
 
 def should_preload_upscaler() -> bool:
     """Return True if upscaler models should preload during startup."""
     return os.environ.get("UPSCALER_PRELOAD", "0").lower() in ("1", "true", "yes")
+
+
+def should_preload_transcribe() -> bool:
+    """Return True if transcription models should preload during startup."""
+    return os.environ.get("TRANSCRIBE_PRELOAD", "0").lower() in ("1", "true", "yes")

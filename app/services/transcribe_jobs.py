@@ -8,9 +8,10 @@ import tempfile
 import threading
 import time
 import uuid
-from typing import Any
+from typing import Any, BinaryIO
 
 from app.services.audio_transcribe import transcribe_audio_file
+from app.config import get_settings
 from app.services.result_store import save_result
 
 _LOCK = threading.Lock()
@@ -19,6 +20,24 @@ _JOBS: dict[str, dict[str, Any]] = {}
 
 def _now() -> float:
     return time.time()
+
+
+def _job_ttl_seconds() -> float:
+    # Keep job metadata around for the same TTL as downloadable results.
+    return float(get_settings().result_ttl_hours) * 3600.0
+
+
+def _prune_jobs_locked() -> None:
+    cutoff = _now() - _job_ttl_seconds()
+    expired: list[str] = []
+    for jid, job in _JOBS.items():
+        if job.get("status") not in {"succeeded", "failed"}:
+            continue
+        finished_at = float(job.get("finished_at") or 0)
+        if finished_at and finished_at < cutoff:
+            expired.append(jid)
+    for jid in expired:
+        _JOBS.pop(jid, None)
 
 
 def _serialize_job(job: dict[str, Any]) -> dict[str, Any]:
@@ -39,6 +58,7 @@ def _serialize_job(job: dict[str, Any]) -> dict[str, Any]:
 
 def _set_job(job_id: str, **patch: Any) -> None:
     with _LOCK:
+        _prune_jobs_locked()
         job = _JOBS.get(job_id)
         if not job:
             return
@@ -90,6 +110,7 @@ def _run_job(job_id: str) -> None:
             finished_at=_now(),
             result=result_payload,
             error=None,
+            temp_audio_path=None,
         )
     except Exception as exc:
         _set_job(
@@ -97,12 +118,45 @@ def _run_job(job_id: str) -> None:
             status="failed",
             finished_at=_now(),
             error=str(exc),
+            temp_audio_path=None,
         )
     finally:
         try:
             os.unlink(temp_path)
         except OSError:
             pass
+
+
+def _create_transcribe_job_from_tempfile(
+    temp_path: str,
+    *,
+    original_size: int,
+    filename: str | None,
+    output_format: str,
+    language_hint: str | None,
+) -> dict[str, Any]:
+    job_id = uuid.uuid4().hex
+    job = {
+        "job_id": job_id,
+        "status": "queued",
+        "created_at": _now(),
+        "started_at": None,
+        "finished_at": None,
+        "filename": filename,
+        "temp_audio_path": temp_path,
+        "original_size": original_size,
+        "output_format": output_format,
+        "language_hint": (language_hint or "").strip() or None,
+        "result": None,
+        "error": None,
+    }
+    with _LOCK:
+        _prune_jobs_locked()
+        _JOBS[job_id] = job
+
+    thread = threading.Thread(target=_run_job, args=(job_id,), daemon=True)
+    thread.start()
+    return _serialize_job(job)
 
 
 def create_transcribe_job(
@@ -123,31 +177,54 @@ def create_transcribe_job(
     finally:
         tmp.close()
 
-    job_id = uuid.uuid4().hex
-    job = {
-        "job_id": job_id,
-        "status": "queued",
-        "created_at": _now(),
-        "started_at": None,
-        "finished_at": None,
-        "filename": filename,
-        "temp_audio_path": tmp.name,
-        "original_size": len(audio_bytes),
-        "output_format": output_format,
-        "language_hint": (language_hint or "").strip() or None,
-        "result": None,
-        "error": None,
-    }
-    with _LOCK:
-        _JOBS[job_id] = job
+    return _create_transcribe_job_from_tempfile(
+        tmp.name,
+        original_size=len(audio_bytes),
+        filename=filename,
+        output_format=output_format,
+        language_hint=language_hint,
+    )
 
-    thread = threading.Thread(target=_run_job, args=(job_id,), daemon=True)
-    thread.start()
-    return _serialize_job(job)
+
+def create_transcribe_job_from_stream(
+    audio_stream: BinaryIO,
+    *,
+    filename: str | None,
+    output_format: str,
+    language_hint: str | None,
+    chunk_size: int = 1024 * 1024,
+) -> dict[str, Any]:
+    suffix = Path(filename or "audio.wav").suffix or ".wav"
+    tmp = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
+    total = 0
+    try:
+        while True:
+            chunk = audio_stream.read(chunk_size)
+            if not chunk:
+                break
+            total += len(chunk)
+            tmp.write(chunk)
+        tmp.flush()
+    finally:
+        tmp.close()
+    if total <= 0:
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
+        raise ValueError("Empty file.")
+    return _create_transcribe_job_from_tempfile(
+        tmp.name,
+        original_size=total,
+        filename=filename,
+        output_format=output_format,
+        language_hint=language_hint,
+    )
 
 
 def get_transcribe_job(job_id: str) -> dict[str, Any] | None:
     with _LOCK:
+        _prune_jobs_locked()
         job = _JOBS.get(job_id)
         if not job:
             return None

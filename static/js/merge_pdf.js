@@ -8,6 +8,8 @@ document.addEventListener('alpine:init', () => {
         dragover: false,
         uploadProgress: 0,
         uploadPhase: 'uploading',
+        uploadSpeedText: '—',
+        uploadRemainingText: '—',
         selectedFiles: [],
         originalBytes: 0,
         mergedBytes: 0,
@@ -133,6 +135,8 @@ document.addEventListener('alpine:init', () => {
             this.originalSizeText = '—';
             this.pdfSizeText = '—';
             this.fileCountText = '—';
+            this.uploadSpeedText = '—';
+            this.uploadRemainingText = '—';
             const input = this.$refs.fileInput;
             if (input) input.value = '';
         },
@@ -160,11 +164,21 @@ document.addEventListener('alpine:init', () => {
             const formData = new FormData();
             for (const f of this.selectedFiles) formData.append('pdfs', f);
             const totalIn = this.selectedFiles.reduce((sum, f) => sum + f.size, 0);
+            this.uploadSpeedText = '—';
+            this.uploadRemainingText = this.formatBytes(totalIn);
+            const uploadStartedAt = Date.now();
             const count = this.selectedFiles.length;
 
             try {
-                const data = await uploadXHR('/merge-pdf', formData, (pct) => {
+                const data = await uploadXHR('/merge-pdf', formData, (pct, detail) => {
                     this.uploadProgress = pct;
+                    if (detail && detail.lengthComputable) {
+                        const elapsedSeconds = Math.max((Date.now() - uploadStartedAt) / 1000, 0.001);
+                        const bytesPerSecond = detail.loaded / elapsedSeconds;
+                        const remainingBytes = Math.max(detail.total - detail.loaded, 0);
+                        this.uploadSpeedText = `${this.formatBytes(Math.max(Math.round(bytesPerSecond), 0))}/s`;
+                        this.uploadRemainingText = this.formatBytes(remainingBytes);
+                    }
                     if (pct >= 100) this.uploadPhase = 'processing';
                 });
                 this.resultServerPath = data.result_url;

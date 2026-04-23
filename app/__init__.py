@@ -10,8 +10,14 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.staticfiles import StaticFiles
 
-from app.config import get_settings, should_preload_rmbg, should_preload_upscaler
+from app.config import (
+    get_settings,
+    should_preload_rmbg,
+    should_preload_transcribe,
+    should_preload_upscaler,
+)
 from app.routers import compress, pages, results, rmbg, transcribe
+from app.services.audio_transcribe import preload_transcribe_models
 from app.services.image_upscale import preload_upscaler_models
 from app.services.rmbg import ensure_rmbg_loaded
 
@@ -48,6 +54,8 @@ async def lifespan(_app: FastAPI):
         threading.Thread(target=ensure_rmbg_loaded, daemon=True).start()
     if should_preload_upscaler():
         threading.Thread(target=preload_upscaler_models, daemon=True).start()
+    if should_preload_transcribe():
+        threading.Thread(target=preload_transcribe_models, daemon=True).start()
     yield
 
 

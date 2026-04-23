@@ -63,6 +63,8 @@
                             <div class="upload-progress-fill" :style="`width: ${uploadProgress}%`"></div>
                         </div>
                         <p class="upload-progress-label" x-text="`${uploadProgress}%`"></p>
+                        <p class="processing-subtitle">Speed: <span x-text="uploadSpeedText"></span></p>
+                        <p class="processing-subtitle">Remaining data: <span x-text="uploadRemainingText"></span></p>
                     </div>
                 </template>
                 <template x-if="uploadPhase === 'processing'">

@@ -84,6 +84,29 @@ def _resolve_hf_token() -> str:
     )
 
 
+def _verify_hf_model_access(model_id: str, token: str) -> None:
+    """Fail fast when token is missing gated-model agreement/permission."""
+    try:
+        from huggingface_hub import HfApi
+        from huggingface_hub.errors import GatedRepoError
+    except Exception:
+        # If hub helpers are unavailable, let downstream loader surface errors.
+        return
+
+    api = HfApi(token=token)
+    try:
+        api.model_info(model_id)
+    except GatedRepoError as exc:
+        raise ValueError(
+            f"Hugging Face access is gated for '{model_id}'. "
+            f"Accept the agreement at https://huggingface.co/{model_id} "
+            "with the same account that created HF_TOKEN."
+        ) from exc
+    except Exception:
+        # Keep startup robust for transient network errors; model load will re-validate.
+        return
+
+
 def _effective_language(language_hint: str | None) -> str | None:
     """Validate request language hint; empty/invalid means auto-detect."""
     candidate = (language_hint or "").strip()
@@ -125,6 +148,9 @@ def _ensure_runtime() -> _TranscribeRuntime:
         settings = get_settings()
         device = _resolve_device()
         compute_type = _resolve_compute_type(device)
+        hf_token = _resolve_hf_token()
+        if settings.hf_verify_gated_access:
+            _verify_hf_model_access(settings.transcribe_diarization_model, hf_token)
         asr_model = whisperx.load_model(
             settings.transcribe_asr_model,
             device,
@@ -134,7 +160,7 @@ def _ensure_runtime() -> _TranscribeRuntime:
         # WhisperX 3.8+ exposes DiarizationPipeline from whisperx.diarize (not whisperx top-level).
         diarization_pipeline = DiarizationPipeline(
             model_name=settings.transcribe_diarization_model,
-            token=_resolve_hf_token(),
+            token=hf_token,
             device=device,
         )
         _RUNTIME = _TranscribeRuntime(
@@ -145,6 +171,11 @@ def _ensure_runtime() -> _TranscribeRuntime:
             align_cache={},
         )
         return _RUNTIME
+
+
+def preload_transcribe_models() -> None:
+    """Warm up/download WhisperX + diarization models on startup."""
+    _ensure_runtime()
 
 
 def reset_transcribe_runtime() -> None:

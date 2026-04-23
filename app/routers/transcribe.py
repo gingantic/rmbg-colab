@@ -9,7 +9,7 @@ from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.services.audio_transcribe import normalize_export_format, transcribe_audio_bytes
-from app.services.transcribe_jobs import create_transcribe_job, get_transcribe_job
+from app.services.transcribe_jobs import create_transcribe_job_from_stream, get_transcribe_job
 from app.services.result_store import save_result
 from app.utils.safe_errors import internal_error_message
 
@@ -72,9 +72,10 @@ async def transcribe_audio_async_post(
         return JSONResponse({"error": "Empty filename."}, status_code=400)
     try:
         fmt = normalize_export_format(output_format)
-        raw = await audio.read()
-        job = create_transcribe_job(
-            raw,
+        await audio.seek(0)
+        job = await asyncio.to_thread(
+            create_transcribe_job_from_stream,
+            audio.file,
             filename=audio.filename,
             output_format=fmt,
             language_hint=language_hint,

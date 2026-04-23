@@ -10,6 +10,8 @@ document.addEventListener('alpine:init', () => {
         dragover: false,
         uploadProgress: 0,
         uploadPhase: 'uploading',
+        uploadSpeedText: '—',
+        uploadRemainingText: '—',
         originalBytes: 0,
         outputBytes: 0,
         resultServerPath: null,
@@ -81,6 +83,8 @@ document.addEventListener('alpine:init', () => {
             this.originalSizeText = '—';
             this.outputSizeText = '—';
             this.deltaPctText = '—';
+            this.uploadSpeedText = '—';
+            this.uploadRemainingText = '—';
         },
 
         goToResult(origSize, outSize) {
@@ -98,7 +102,10 @@ document.addEventListener('alpine:init', () => {
             }
             this.uploadProgress = 0;
             this.uploadPhase = 'uploading';
+            this.uploadSpeedText = '—';
+            this.uploadRemainingText = this.formatBytes(file.size || 0);
             this.step = 'processing';
+            const uploadStartedAt = Date.now();
             const formData = new FormData();
             formData.append('pdf', file);
             formData.append('format', this.format);
@@ -106,8 +113,15 @@ document.addEventListener('alpine:init', () => {
             const dpiEl = this.$refs.dpiSelect;
             formData.append('dpi', dpiEl ? dpiEl.value : '150');
             try {
-                const data = await uploadXHR('/pdf-to-img', formData, (pct) => {
+                const data = await uploadXHR('/pdf-to-img', formData, (pct, detail) => {
                     this.uploadProgress = pct;
+                    if (detail && detail.lengthComputable) {
+                        const elapsedSeconds = Math.max((Date.now() - uploadStartedAt) / 1000, 0.001);
+                        const bytesPerSecond = detail.loaded / elapsedSeconds;
+                        const remainingBytes = Math.max(detail.total - detail.loaded, 0);
+                        this.uploadSpeedText = `${this.formatBytes(Math.max(Math.round(bytesPerSecond), 0))}/s`;
+                        this.uploadRemainingText = this.formatBytes(remainingBytes);
+                    }
                     if (pct >= 100) this.uploadPhase = 'processing';
                 });
                 this.resultServerPath = data.result_url;

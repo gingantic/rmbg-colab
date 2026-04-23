@@ -8,6 +8,8 @@ document.addEventListener("alpine:init", () => {
         dragover: false,
         uploadProgress: 0,
         uploadPhase: "uploading",
+        uploadSpeedText: "—",
+        uploadRemainingText: "—",
         pdfFile: null,
         pageRange: "",
         originalBytes: 0,
@@ -100,14 +102,24 @@ document.addEventListener("alpine:init", () => {
 
             this.uploadProgress = 0;
             this.uploadPhase = "uploading";
+            this.uploadSpeedText = "—";
+            this.uploadRemainingText = this.formatBytes(this.pdfFile.size || 0);
             this.step = "processing";
+            const uploadStartedAt = Date.now();
             const form = new FormData();
             form.append("pdf", this.pdfFile);
             form.append("page_range", range);
 
             try {
-                const data = await uploadXHR("/extract-range-pdf", form, (pct) => {
+                const data = await uploadXHR("/extract-range-pdf", form, (pct, detail) => {
                     this.uploadProgress = pct;
+                    if (detail && detail.lengthComputable) {
+                        const elapsedSeconds = Math.max((Date.now() - uploadStartedAt) / 1000, 0.001);
+                        const bytesPerSecond = detail.loaded / elapsedSeconds;
+                        const remainingBytes = Math.max(detail.total - detail.loaded, 0);
+                        this.uploadSpeedText = `${this.formatBytes(Math.max(Math.round(bytesPerSecond), 0))}/s`;
+                        this.uploadRemainingText = this.formatBytes(remainingBytes);
+                    }
                     if (pct >= 100) this.uploadPhase = "processing";
                 });
                 this.resultServerPath = data.result_url;
@@ -139,6 +151,8 @@ document.addEventListener("alpine:init", () => {
             this.outputBytes = 0;
             this.resultServerPath = null;
             this.resultFileLabel = "—";
+            this.uploadSpeedText = "—";
+            this.uploadRemainingText = "—";
             const input = this.$refs.fileInput;
             if (input) input.value = "";
         },

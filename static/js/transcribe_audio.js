@@ -9,6 +9,8 @@ document.addEventListener('alpine:init', () => {
         format: 'json',
         uploadProgress: 0,
         uploadPhase: 'uploading',
+        uploadSpeedText: '—',
+        uploadRemainingText: '—',
         processingMessage: 'Submitting background transcription job...',
         toastVisible: false,
         toastMessage: '',
@@ -74,6 +76,8 @@ document.addEventListener('alpine:init', () => {
             this.step = 'upload';
             this.uploadProgress = 0;
             this.uploadPhase = 'uploading';
+            this.uploadSpeedText = '—';
+            this.uploadRemainingText = '—';
             this.processingMessage = 'Submitting background transcription job...';
         },
 
@@ -100,15 +104,25 @@ document.addEventListener('alpine:init', () => {
             this.clearResultData();
             this.uploadProgress = 0;
             this.uploadPhase = 'uploading';
+            this.uploadSpeedText = '—';
+            this.uploadRemainingText = this.formatBytes(file.size || 0);
             this.step = 'processing';
             this.originalSizeText = this.formatBytes(file.size || 0);
             this.processingMessage = 'Submitting background transcription job...';
             try {
+                const uploadStartedAt = Date.now();
                 const formData = new FormData();
                 formData.append('audio', file);
                 formData.append('format', this.format);
-                const data = await uploadXHR('/transcribe-audio/async', formData, (pct) => {
+                const data = await uploadXHR('/transcribe-audio/async', formData, (pct, detail) => {
                     this.uploadProgress = pct;
+                    if (detail && detail.lengthComputable) {
+                        const elapsedSeconds = Math.max((Date.now() - uploadStartedAt) / 1000, 0.001);
+                        const bytesPerSecond = detail.loaded / elapsedSeconds;
+                        const remainingBytes = Math.max(detail.total - detail.loaded, 0);
+                        this.uploadSpeedText = `${this.formatBytes(Math.max(Math.round(bytesPerSecond), 0))}/s`;
+                        this.uploadRemainingText = this.formatBytes(remainingBytes);
+                    }
                     if (pct >= 100) this.uploadPhase = 'processing';
                 });
                 this.jobId = data.job_id || '';

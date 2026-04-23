@@ -18,6 +18,8 @@ document.addEventListener('alpine:init', () => {
         activeBgColor: null,
         uploadProgress: 0,
         uploadPhase: 'uploading',
+        uploadSpeedText: '—',
+        uploadRemainingText: '—',
         toastVisible: false,
         toastMessage: '',
         toastHideTimer: null,
@@ -82,6 +84,8 @@ document.addEventListener('alpine:init', () => {
             this.resetBatchState();
             this.step = 'upload';
             this.activeBgColor = null;
+            this.uploadSpeedText = '—';
+            this.uploadRemainingText = '—';
             this.$nextTick(() => this.resetResultBackground());
         },
 
@@ -163,6 +167,10 @@ document.addEventListener('alpine:init', () => {
             this.uploadProgress = 0;
             this.uploadPhase = 'uploading';
             this.step = 'processing';
+            const totalInputBytes = pickedFiles.reduce((sum, file) => sum + file.size, 0);
+            this.uploadSpeedText = '—';
+            this.uploadRemainingText = this.formatBytes(totalInputBytes);
+            const uploadStartedAt = Date.now();
 
             if (pickedFiles.length === 1) {
                 const file = pickedFiles[0];
@@ -178,6 +186,11 @@ document.addEventListener('alpine:init', () => {
                         xhr.upload.addEventListener('progress', (e) => {
                             if (e.lengthComputable) {
                                 this.uploadProgress = Math.round((e.loaded / e.total) * 100);
+                                const elapsedSeconds = Math.max((Date.now() - uploadStartedAt) / 1000, 0.001);
+                                const bytesPerSecond = e.loaded / elapsedSeconds;
+                                const remainingBytes = Math.max(e.total - e.loaded, 0);
+                                this.uploadSpeedText = `${this.formatBytes(Math.max(Math.round(bytesPerSecond), 0))}/s`;
+                                this.uploadRemainingText = this.formatBytes(remainingBytes);
                                 if (this.uploadProgress >= 100) this.uploadPhase = 'processing';
                             }
                         });
@@ -214,14 +227,20 @@ document.addEventListener('alpine:init', () => {
             this.isBatchMode = true;
             this.batchCount = pickedFiles.length;
             this.batchFileNames = pickedFiles.map((file) => file.name);
-            const totalInputBytes = pickedFiles.reduce((sum, file) => sum + file.size, 0);
             this.batchOriginalSizeText = this.formatBytes(totalInputBytes);
 
             try {
                 const formData = new FormData();
                 pickedFiles.forEach((file) => formData.append('images', file));
-                const data = await uploadXHR('/remove-bg', formData, (pct) => {
+                const data = await uploadXHR('/remove-bg', formData, (pct, detail) => {
                     this.uploadProgress = pct;
+                    if (detail && detail.lengthComputable) {
+                        const elapsedSeconds = Math.max((Date.now() - uploadStartedAt) / 1000, 0.001);
+                        const bytesPerSecond = detail.loaded / elapsedSeconds;
+                        const remainingBytes = Math.max(detail.total - detail.loaded, 0);
+                        this.uploadSpeedText = `${this.formatBytes(Math.max(Math.round(bytesPerSecond), 0))}/s`;
+                        this.uploadRemainingText = this.formatBytes(remainingBytes);
+                    }
                     if (pct >= 100) this.uploadPhase = 'processing';
                 });
                 this.batchZipUrl = data.result_url || null;
