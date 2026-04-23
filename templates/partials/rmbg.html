@@ -37,9 +37,22 @@
 
         <section class="section processing-section" x-show="step === 'processing'" x-cloak>
             <div class="glass-card processing-card">
-                <div class="spinner"></div>
-                <h2 class="processing-title" x-text="isBatchMode ? `Removing backgrounds from ${batchCount} images...` : 'Removing background...'"></h2>
-                <p class="processing-subtitle" x-text="isBatchMode ? 'Your PNG results will be bundled into a ZIP download.' : 'This may take a moment depending on image size.'"></p>
+                <template x-if="uploadPhase === 'uploading'">
+                    <div>
+                        <h2 class="processing-title" x-text="isBatchMode ? 'Uploading images…' : 'Uploading…'"></h2>
+                        <div class="upload-progress-track">
+                            <div class="upload-progress-fill" :style="`width: ${uploadProgress}%`"></div>
+                        </div>
+                        <p class="upload-progress-label" x-text="`${uploadProgress}%`"></p>
+                    </div>
+                </template>
+                <template x-if="uploadPhase === 'processing'">
+                    <div>
+                        <div class="spinner"></div>
+                        <h2 class="processing-title" x-text="isBatchMode ? `Removing backgrounds from ${batchCount} images...` : 'Removing background...'"></h2>
+                        <p class="processing-subtitle" x-text="isBatchMode ? 'Your PNG results will be bundled into a ZIP download.' : 'This may take a moment depending on image size.'"></p>
+                    </div>
+                </template>
             </div>
         </section>
 

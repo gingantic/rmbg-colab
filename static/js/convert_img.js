@@ -9,6 +9,8 @@ document.addEventListener('alpine:init', () => {
         quality: 85,
         scalePercent: 100,
         dragover: false,
+        uploadProgress: 0,
+        uploadPhase: 'uploading',
         originalPreviewUrl: '',
         originalBytes: 0,
         convertedBytes: 0,
@@ -131,6 +133,8 @@ document.addEventListener('alpine:init', () => {
             }
             const originalUrl = URL.createObjectURL(file);
             this.originalPreviewUrl = originalUrl;
+            this.uploadProgress = 0;
+            this.uploadPhase = 'uploading';
             this.step = 'processing';
             const formData = new FormData();
             formData.append('image', file);
@@ -140,12 +144,10 @@ document.addEventListener('alpine:init', () => {
             if (this.format === 'jpeg') this.downloadExt = 'jpg';
             else this.downloadExt = this.format;
             try {
-                const res = await fetch('/convert-img', { method: 'POST', body: formData });
-                if (!res.ok) {
-                    const data = await res.json().catch(() => ({}));
-                    throw new Error(data.error || `Server error (${res.status})`);
-                }
-                const data = await res.json();
+                const data = await uploadXHR('/convert-img', formData, (pct) => {
+                    this.uploadProgress = pct;
+                    if (pct >= 100) this.uploadPhase = 'processing';
+                });
                 this.resultServerPath = data.result_url;
                 this.goToResult(originalUrl, this.resultServerPath, file.size, data.compressed_size, false);
             } catch (e) {

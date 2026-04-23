@@ -69,9 +69,22 @@
 
         <section class="section processing-section" x-show="step === 'processing'" x-cloak>
             <div class="glass-card processing-card">
-                <div class="spinner"></div>
-                <h2 class="processing-title">Extracting pages…</h2>
-                <p class="processing-subtitle">Building a new PDF with the selected range</p>
+                <template x-if="uploadPhase === 'uploading'">
+                    <div>
+                        <h2 class="processing-title">Uploading…</h2>
+                        <div class="upload-progress-track">
+                            <div class="upload-progress-fill" :style="`width: ${uploadProgress}%`"></div>
+                        </div>
+                        <p class="upload-progress-label" x-text="`${uploadProgress}%`"></p>
+                    </div>
+                </template>
+                <template x-if="uploadPhase === 'processing'">
+                    <div>
+                        <div class="spinner"></div>
+                        <h2 class="processing-title">Extracting pages…</h2>
+                        <p class="processing-subtitle">Building a new PDF with the selected range</p>
+                    </div>
+                </template>
             </div>
         </section>
 

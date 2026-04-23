@@ -7,6 +7,8 @@ document.addEventListener('alpine:init', () => {
         step: 'upload',
         dragover: false,
         format: 'json',
+        uploadProgress: 0,
+        uploadPhase: 'uploading',
         processingMessage: 'Submitting background transcription job...',
         toastVisible: false,
         toastMessage: '',
@@ -70,6 +72,8 @@ document.addEventListener('alpine:init', () => {
             this.clearResultData();
             this.jobId = '';
             this.step = 'upload';
+            this.uploadProgress = 0;
+            this.uploadPhase = 'uploading';
             this.processingMessage = 'Submitting background transcription job...';
         },
 
@@ -94,6 +98,8 @@ document.addEventListener('alpine:init', () => {
         async submitJob(file) {
             this.clearStatusConnection();
             this.clearResultData();
+            this.uploadProgress = 0;
+            this.uploadPhase = 'uploading';
             this.step = 'processing';
             this.originalSizeText = this.formatBytes(file.size || 0);
             this.processingMessage = 'Submitting background transcription job...';
@@ -101,12 +107,10 @@ document.addEventListener('alpine:init', () => {
                 const formData = new FormData();
                 formData.append('audio', file);
                 formData.append('format', this.format);
-                const res = await fetch('/transcribe-audio/async', { method: 'POST', body: formData });
-                if (!res.ok) {
-                    const data = await res.json().catch(() => ({}));
-                    throw new Error(data.error || `Server error (${res.status})`);
-                }
-                const data = await res.json();
+                const data = await uploadXHR('/transcribe-audio/async', formData, (pct) => {
+                    this.uploadProgress = pct;
+                    if (pct >= 100) this.uploadPhase = 'processing';
+                });
                 this.jobId = data.job_id || '';
                 if (!this.jobId) throw new Error('No job ID returned by server.');
                 this.processingMessage = 'Job submitted. Waiting for transcription result...';

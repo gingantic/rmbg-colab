@@ -6,6 +6,8 @@ document.addEventListener("alpine:init", () => {
     Alpine.data("splitReorderPdfTool", () => ({
         step: "upload",
         dragover: false,
+        uploadProgress: 0,
+        uploadPhase: "uploading",
         pdfFile: null,
         pageCount: 0,
         pages: [],
@@ -205,6 +207,8 @@ document.addEventListener("alpine:init", () => {
                 this.showError("Upload one PDF first.");
                 return;
             }
+            this.uploadProgress = 0;
+            this.uploadPhase = "uploading";
             this.step = "processing";
             const form = new FormData();
             form.append("pdf", this.pdfFile);
@@ -215,12 +219,10 @@ document.addEventListener("alpine:init", () => {
             form.append("export_mode", this.splitBlocks.length > 0 ? "zip" : "single");
 
             try {
-                const res = await fetch("/split-reorder-pdf", { method: "POST", body: form });
-                if (!res.ok) {
-                    const data = await res.json().catch(() => ({}));
-                    throw new Error(data.error || `Server error (${res.status})`);
-                }
-                const data = await res.json();
+                const data = await uploadXHR("/split-reorder-pdf", form, (pct) => {
+                    this.uploadProgress = pct;
+                    if (pct >= 100) this.uploadPhase = "processing";
+                });
                 this.resultServerPath = data.result_url;
                 this.resultFileLabel = data.filename || "output";
                 this.originalBytes = this.pdfFile.size;

@@ -8,6 +8,8 @@ document.addEventListener('alpine:init', () => {
         mode: 'auto',
         quality: 85,
         dragover: false,
+        uploadProgress: 0,
+        uploadPhase: 'uploading',
         originalBytes: 0,
         compressedBytes: 0,
         resultServerPath: null,
@@ -120,6 +122,8 @@ document.addEventListener('alpine:init', () => {
                 this.showError(err);
                 return;
             }
+            this.uploadProgress = 0;
+            this.uploadPhase = 'uploading';
             this.step = 'processing';
             const formData = new FormData();
             formData.append('pdf', file);
@@ -130,12 +134,10 @@ document.addEventListener('alpine:init', () => {
                 if (dpi) formData.append('bitmap_dpi', dpi.value);
             }
             try {
-                const res = await fetch('/compress-pdf', { method: 'POST', body: formData });
-                if (!res.ok) {
-                    const data = await res.json().catch(() => ({}));
-                    throw new Error(data.error || `Server error (${res.status})`);
-                }
-                const data = await res.json();
+                const data = await uploadXHR('/compress-pdf', formData, (pct) => {
+                    this.uploadProgress = pct;
+                    if (pct >= 100) this.uploadPhase = 'processing';
+                });
                 this.resultServerPath = data.result_url;
                 this.showOpenTab = true;
                 this.goToResult(file.size, data.compressed_size, data.pdf_mode, data.kept_original);

@@ -6,6 +6,8 @@ document.addEventListener("alpine:init", () => {
     Alpine.data("extractRangePdfTool", () => ({
         step: "upload",
         dragover: false,
+        uploadProgress: 0,
+        uploadPhase: "uploading",
         pdfFile: null,
         pageRange: "",
         originalBytes: 0,
@@ -96,18 +98,18 @@ document.addEventListener("alpine:init", () => {
                 return;
             }
 
+            this.uploadProgress = 0;
+            this.uploadPhase = "uploading";
             this.step = "processing";
             const form = new FormData();
             form.append("pdf", this.pdfFile);
             form.append("page_range", range);
 
             try {
-                const res = await fetch("/extract-range-pdf", { method: "POST", body: form });
-                if (!res.ok) {
-                    const data = await res.json().catch(() => ({}));
-                    throw new Error(data.error || `Server error (${res.status})`);
-                }
-                const data = await res.json();
+                const data = await uploadXHR("/extract-range-pdf", form, (pct) => {
+                    this.uploadProgress = pct;
+                    if (pct >= 100) this.uploadPhase = "processing";
+                });
                 this.resultServerPath = data.result_url;
                 this.resultFileLabel = data.filename || "output.pdf";
                 this.originalBytes = this.pdfFile.size;

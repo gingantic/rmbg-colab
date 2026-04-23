@@ -16,6 +16,8 @@ document.addEventListener('alpine:init', () => {
         originalPreviewUrl: '',
         resultBlobUrl: null,
         activeBgColor: null,
+        uploadProgress: 0,
+        uploadPhase: 'uploading',
         toastVisible: false,
         toastMessage: '',
         toastHideTimer: null,
@@ -158,6 +160,8 @@ document.addEventListener('alpine:init', () => {
 
             this.clearResultUrls();
             this.resetBatchState();
+            this.uploadProgress = 0;
+            this.uploadPhase = 'uploading';
             this.step = 'processing';
 
             if (pickedFiles.length === 1) {
@@ -167,13 +171,36 @@ document.addEventListener('alpine:init', () => {
                 try {
                     const formData = new FormData();
                     formData.append('image', file);
-                    const res = await fetch('/remove-bg', { method: 'POST', body: formData });
-                    if (!res.ok) {
-                        const data = await res.json().catch(() => ({}));
-                        throw new Error(data.error || `Server error (${res.status})`);
-                    }
-                    const blob = await res.blob();
-                    this.resultBlobUrl = URL.createObjectURL(blob);
+                    const xhr = new XMLHttpRequest();
+                    const blobData = await new Promise((resolve, reject) => {
+                        xhr.open('POST', '/remove-bg');
+                        xhr.responseType = 'blob';
+                        xhr.upload.addEventListener('progress', (e) => {
+                            if (e.lengthComputable) {
+                                this.uploadProgress = Math.round((e.loaded / e.total) * 100);
+                                if (this.uploadProgress >= 100) this.uploadPhase = 'processing';
+                            }
+                        });
+                        xhr.addEventListener('load', () => {
+                            if (xhr.status >= 200 && xhr.status < 300) {
+                                resolve(xhr.response);
+                            } else {
+                                const reader = new FileReader();
+                                reader.onload = () => {
+                                    try {
+                                        const d = JSON.parse(reader.result);
+                                        reject(new Error(d.error || `Server error (${xhr.status})`));
+                                    } catch {
+                                        reject(new Error(`Server error (${xhr.status})`));
+                                    }
+                                };
+                                reader.readAsText(xhr.response);
+                            }
+                        });
+                        xhr.addEventListener('error', () => reject(new Error('Network error — check your connection.')));
+                        xhr.send(formData);
+                    });
+                    this.resultBlobUrl = URL.createObjectURL(blobData);
                     this.isBatchMode = false;
                     this.step = 'result';
                     this.$nextTick(() => this.resetResultBackground());
@@ -193,12 +220,10 @@ document.addEventListener('alpine:init', () => {
             try {
                 const formData = new FormData();
                 pickedFiles.forEach((file) => formData.append('images', file));
-                const res = await fetch('/remove-bg', { method: 'POST', body: formData });
-                if (!res.ok) {
-                    const data = await res.json().catch(() => ({}));
-                    throw new Error(data.error || `Server error (${res.status})`);
-                }
-                const data = await res.json();
+                const data = await uploadXHR('/remove-bg', formData, (pct) => {
+                    this.uploadProgress = pct;
+                    if (pct >= 100) this.uploadPhase = 'processing';
+                });
                 this.batchZipUrl = data.result_url || null;
                 this.batchZipFilename = data.filename || 'rmbg_batch.zip';
                 this.batchOutputSizeText = this.formatBytes(data.compressed_size || 0);

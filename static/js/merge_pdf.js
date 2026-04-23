@@ -6,6 +6,8 @@ document.addEventListener('alpine:init', () => {
     Alpine.data('mergePdfTool', () => ({
         step: 'upload',
         dragover: false,
+        uploadProgress: 0,
+        uploadPhase: 'uploading',
         selectedFiles: [],
         originalBytes: 0,
         mergedBytes: 0,
@@ -152,6 +154,8 @@ document.addEventListener('alpine:init', () => {
                 return;
             }
 
+            this.uploadProgress = 0;
+            this.uploadPhase = 'uploading';
             this.step = 'processing';
             const formData = new FormData();
             for (const f of this.selectedFiles) formData.append('pdfs', f);
@@ -159,12 +163,10 @@ document.addEventListener('alpine:init', () => {
             const count = this.selectedFiles.length;
 
             try {
-                const res = await fetch('/merge-pdf', { method: 'POST', body: formData });
-                if (!res.ok) {
-                    const data = await res.json().catch(() => ({}));
-                    throw new Error(data.error || `Server error (${res.status})`);
-                }
-                const data = await res.json();
+                const data = await uploadXHR('/merge-pdf', formData, (pct) => {
+                    this.uploadProgress = pct;
+                    if (pct >= 100) this.uploadPhase = 'processing';
+                });
                 this.resultServerPath = data.result_url;
                 this.goToResult(totalIn, data.compressed_size, count);
             } catch (e) {

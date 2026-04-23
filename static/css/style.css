@@ -549,6 +549,29 @@ body::before {
     to { transform: rotate(360deg); }
 }
 
+.upload-progress-track {
+    width: 100%;
+    max-width: 320px;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 99px;
+    margin: 16px auto 8px;
+    overflow: hidden;
+}
+
+.upload-progress-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: var(--accent-gradient);
+    transition: width 0.15s ease;
+}
+
+.upload-progress-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
 .processing-title {
     font-size: 1.2rem;
     font-weight: 600;
