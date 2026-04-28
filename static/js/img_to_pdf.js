@@ -190,7 +190,7 @@ document.addEventListener('alpine:init', () => {
             this.selectedFiles.forEach((f) => formData.append('images', f));
             const totalIn = this.selectedFiles.reduce((s, f) => s + f.size, 0);
             this.uploadSpeedText = '—';
-            this.uploadRemainingText = this.formatBytes(totalIn);
+            this.uploadRemainingText = `0 B / ${this.formatBytes(totalIn)}`;
             const uploadStartedAt = Date.now();
             const pageCount = this.selectedFiles.length;
             try {
@@ -199,9 +199,10 @@ document.addEventListener('alpine:init', () => {
                     if (detail && detail.lengthComputable) {
                         const elapsedSeconds = Math.max((Date.now() - uploadStartedAt) / 1000, 0.001);
                         const bytesPerSecond = detail.loaded / elapsedSeconds;
-                        const remainingBytes = Math.max(detail.total - detail.loaded, 0);
                         this.uploadSpeedText = `${this.formatBytes(Math.max(Math.round(bytesPerSecond), 0))}/s`;
-                        this.uploadRemainingText = this.formatBytes(remainingBytes);
+                        const loadedBytes = Math.max(detail.loaded, 0);
+                        const totalBytes = Math.max(detail.total, loadedBytes);
+                        this.uploadRemainingText = `${this.formatBytes(loadedBytes)} / ${this.formatBytes(totalBytes)}`;
                     }
                     if (pct >= 100) this.uploadPhase = 'processing';
                 });

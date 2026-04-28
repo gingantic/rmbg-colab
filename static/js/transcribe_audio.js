@@ -11,6 +11,7 @@ document.addEventListener('alpine:init', () => {
         uploadPhase: 'uploading',
         uploadSpeedText: '—',
         uploadRemainingText: '—',
+        uploadRemainingTimeText: '—',
         processingMessage: 'Submitting background transcription job...',
         toastVisible: false,
         toastMessage: '',
@@ -29,6 +30,14 @@ document.addEventListener('alpine:init', () => {
             if (n < 1024) return `${n} B`;
             if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
             return `${(n / (1024 * 1024)).toFixed(2)} MB`;
+        },
+
+        formatDuration(seconds) {
+            const s = Math.max(Math.floor(Number(seconds) || 0), 0);
+            const mm = Math.floor(s / 60);
+            const ss = s % 60;
+            if (mm <= 0) return `${ss}s`;
+            return `${mm}m ${String(ss).padStart(2, '0')}s`;
         },
 
         showError(msg) {
@@ -78,6 +87,7 @@ document.addEventListener('alpine:init', () => {
             this.uploadPhase = 'uploading';
             this.uploadSpeedText = '—';
             this.uploadRemainingText = '—';
+            this.uploadRemainingTimeText = '—';
             this.processingMessage = 'Submitting background transcription job...';
         },
 
@@ -106,6 +116,7 @@ document.addEventListener('alpine:init', () => {
             this.uploadPhase = 'uploading';
             this.uploadSpeedText = '—';
             this.uploadRemainingText = this.formatBytes(file.size || 0);
+            this.uploadRemainingTimeText = '—';
             this.step = 'processing';
             this.originalSizeText = this.formatBytes(file.size || 0);
             this.processingMessage = 'Submitting background transcription job...';
@@ -122,6 +133,12 @@ document.addEventListener('alpine:init', () => {
                         const remainingBytes = Math.max(detail.total - detail.loaded, 0);
                         this.uploadSpeedText = `${this.formatBytes(Math.max(Math.round(bytesPerSecond), 0))}/s`;
                         this.uploadRemainingText = this.formatBytes(remainingBytes);
+                        if (bytesPerSecond > 0) {
+                            const remainingSeconds = remainingBytes / bytesPerSecond;
+                            this.uploadRemainingTimeText = this.formatDuration(remainingSeconds);
+                        } else {
+                            this.uploadRemainingTimeText = '—';
+                        }
                     }
                     if (pct >= 100) this.uploadPhase = 'processing';
                 });

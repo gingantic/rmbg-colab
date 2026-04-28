@@ -169,7 +169,7 @@ document.addEventListener('alpine:init', () => {
             this.step = 'processing';
             const totalInputBytes = pickedFiles.reduce((sum, file) => sum + file.size, 0);
             this.uploadSpeedText = '—';
-            this.uploadRemainingText = this.formatBytes(totalInputBytes);
+            this.uploadRemainingText = `0 B / ${this.formatBytes(totalInputBytes)}`;
             const uploadStartedAt = Date.now();
 
             if (pickedFiles.length === 1) {
@@ -188,9 +188,10 @@ document.addEventListener('alpine:init', () => {
                                 this.uploadProgress = Math.round((e.loaded / e.total) * 100);
                                 const elapsedSeconds = Math.max((Date.now() - uploadStartedAt) / 1000, 0.001);
                                 const bytesPerSecond = e.loaded / elapsedSeconds;
-                                const remainingBytes = Math.max(e.total - e.loaded, 0);
                                 this.uploadSpeedText = `${this.formatBytes(Math.max(Math.round(bytesPerSecond), 0))}/s`;
-                                this.uploadRemainingText = this.formatBytes(remainingBytes);
+                                const loadedBytes = Math.max(e.loaded, 0);
+                                const totalBytes = Math.max(e.total, loadedBytes);
+                                this.uploadRemainingText = `${this.formatBytes(loadedBytes)} / ${this.formatBytes(totalBytes)}`;
                                 if (this.uploadProgress >= 100) this.uploadPhase = 'processing';
                             }
                         });
@@ -237,9 +238,10 @@ document.addEventListener('alpine:init', () => {
                     if (detail && detail.lengthComputable) {
                         const elapsedSeconds = Math.max((Date.now() - uploadStartedAt) / 1000, 0.001);
                         const bytesPerSecond = detail.loaded / elapsedSeconds;
-                        const remainingBytes = Math.max(detail.total - detail.loaded, 0);
                         this.uploadSpeedText = `${this.formatBytes(Math.max(Math.round(bytesPerSecond), 0))}/s`;
-                        this.uploadRemainingText = this.formatBytes(remainingBytes);
+                        const loadedBytes = Math.max(detail.loaded, 0);
+                        const totalBytes = Math.max(detail.total, loadedBytes);
+                        this.uploadRemainingText = `${this.formatBytes(loadedBytes)} / ${this.formatBytes(totalBytes)}`;
                     }
                     if (pct >= 100) this.uploadPhase = 'processing';
                 });
