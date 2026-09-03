@@ -250,12 +250,7 @@ document.addEventListener('alpine:init', () => {
                 href = this.jsonBlobUrl;
             }
             if (!href) return;
-            const a = document.createElement('a');
-            a.href = href;
-            a.download = this.outputFilename || `transcript.${this.format}`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            triggerDownload(href, this.outputFilename || `transcript.${this.format}`);
         },
 
         init() {

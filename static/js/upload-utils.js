@@ -49,3 +49,32 @@ function uploadXHR(url, formData, onProgress) {
         xhr.send(formData);
     });
 }
+
+let _lastDownloadTimestamp = 0;
+
+/**
+ * Triggers a file download in a safe, debounced manner to prevent duplicate downloads.
+ *
+ * @param {string} url - Target URL/blob URL to download.
+ * @param {string} [filename] - Optional suggested filename for download.
+ */
+function triggerDownload(url, filename) {
+    if (!url) return;
+    const now = Date.now();
+    if (now - _lastDownloadTimestamp < 800) {
+        return;
+    }
+    _lastDownloadTimestamp = now;
+
+    const a = document.createElement('a');
+    a.href = url;
+    if (filename) {
+        a.download = filename;
+    }
+    a.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}

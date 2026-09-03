@@ -130,12 +130,7 @@ document.addEventListener('alpine:init', () => {
 
         downloadResult() {
             if (!this.resultServerPath) return;
-            const a = document.createElement('a');
-            a.href = this.resultServerPath;
-            a.download = `upscaled_${this.scale}x.png`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            triggerDownload(this.resultServerPath, `upscaled_${this.scale}x.png`);
         },
     }));
 });

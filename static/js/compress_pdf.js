@@ -186,12 +186,7 @@ document.addEventListener('alpine:init', () => {
 
         downloadResult() {
             if (!this.resultServerPath) return;
-            const a = document.createElement('a');
-            a.href = this.resultServerPath;
-            a.download = 'compressed.pdf';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            triggerDownload(this.resultServerPath, 'compressed.pdf');
         },
 
         async copyShareLink() {

@@ -276,12 +276,7 @@ document.addEventListener('alpine:init', () => {
 
         downloadPng() {
             if (!this.resultBlobUrl) return;
-            const a = document.createElement('a');
-            a.href = this.resultBlobUrl;
-            a.download = 'rmbg_result.png';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            triggerDownload(this.resultBlobUrl, 'rmbg_result.png');
         },
 
         async downloadColored() {
@@ -305,13 +300,8 @@ document.addEventListener('alpine:init', () => {
                 canvas.toBlob((blob) => {
                     if (!blob) return;
                     const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'rmbg_result_colored.png';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
+                    triggerDownload(url, 'rmbg_result_colored.png');
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
                 }, 'image/png');
             } catch (e) {
                 this.showError(e.message || 'Failed to generate background image.');
@@ -320,12 +310,7 @@ document.addEventListener('alpine:init', () => {
 
         downloadBatchZip() {
             if (!this.batchZipUrl) return;
-            const a = document.createElement('a');
-            a.href = this.batchZipUrl;
-            a.download = this.batchZipFilename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            triggerDownload(this.batchZipUrl, this.batchZipFilename);
         },
     }));
 });

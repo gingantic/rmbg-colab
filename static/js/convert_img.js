@@ -196,12 +196,7 @@ document.addEventListener('alpine:init', () => {
 
         downloadResult() {
             if (!this.resultServerPath) return;
-            const a = document.createElement('a');
-            a.href = this.resultServerPath;
-            a.download = `converted.${this.downloadExt}`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            triggerDownload(this.resultServerPath, `converted.${this.downloadExt}`);
         },
 
         async copyShareLink() {

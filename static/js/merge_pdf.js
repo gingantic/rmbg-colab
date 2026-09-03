@@ -45,7 +45,7 @@ document.addEventListener('alpine:init', () => {
         },
 
         fileKey(file, idx) {
-            return `${idx}|${file.name}|${file.size}|${file.lastModified}`;
+            return `${file.name}|${file.size}|${file.lastModified}`;
         },
 
         setFilesFromList(fileList) {
@@ -80,16 +80,18 @@ document.addEventListener('alpine:init', () => {
 
         moveUp(idx) {
             if (idx <= 0 || idx >= this.selectedFiles.length) return;
-            const tmp = this.selectedFiles[idx - 1];
-            this.selectedFiles[idx - 1] = this.selectedFiles[idx];
-            this.selectedFiles[idx] = tmp;
+            const arr = this.selectedFiles;
+            const [item] = arr.splice(idx, 1);
+            arr.splice(idx - 1, 0, item);
+            this.selectedFiles = [...arr];
         },
 
         moveDown(idx) {
             if (idx < 0 || idx >= this.selectedFiles.length - 1) return;
-            const tmp = this.selectedFiles[idx + 1];
-            this.selectedFiles[idx + 1] = this.selectedFiles[idx];
-            this.selectedFiles[idx] = tmp;
+            const arr = this.selectedFiles;
+            const [item] = arr.splice(idx, 1);
+            arr.splice(idx + 1, 0, item);
+            this.selectedFiles = [...arr];
         },
 
         removeAt(idx) {
@@ -192,12 +194,7 @@ document.addEventListener('alpine:init', () => {
 
         downloadResult() {
             if (!this.resultServerPath) return;
-            const a = document.createElement('a');
-            a.href = this.resultServerPath;
-            a.download = 'merged.pdf';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            triggerDownload(this.resultServerPath, 'merged.pdf');
         },
 
         init() {
